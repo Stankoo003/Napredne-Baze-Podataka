@@ -1,0 +1,14 @@
+# Docker
+*.log
+.DS_Store
+.Docker
+
+# Volumes NE stavljaj u git!
+*_data/
+neo4j_data/
+neo4j_logs/
+
+# Node/Python
+node_modules/
+__pycache__/
+.env
