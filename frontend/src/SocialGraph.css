@@ -1,0 +1,391 @@
+.social-graph-page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  position: relative;
+  overflow: hidden;
+}
+
+.back-btn {
+  position: fixed;
+  top: 30px;
+  left: 30px;
+  background: transparent;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  color: #00ff00;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  z-index: 100;
+}
+
+.back-btn:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #00ff00;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.social-graph-container {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  animation: fadeIn 0.8s ease-out;
+}
+
+/* ===== HEADER (FIXED TOP) ===== */
+.graph-header {
+  position: fixed;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 90;
+  background: rgba(10, 10, 10, 0.8);
+  padding: 20px 40px;
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.graph-header h1 {
+  font-size: 2.5rem;
+  color: #fff;
+  margin-bottom: 5px;
+  text-shadow: 0 0 10px #00ff00;
+}
+
+.highlight {
+  color: #00ff00;
+}
+
+.graph-subtitle {
+  color: #00ff00;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  opacity: 0.8;
+}
+
+/* ===== GAME SELECTOR (FIXED TOP RIGHT) ===== */
+.game-selector {
+  position: fixed;
+  top: 30px;
+  right: 30px;
+  z-index: 100;
+}
+
+.game-selector label {
+  display: block;
+  color: #00ff00;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.game-dropdown {
+  padding: 12px 25px;
+  font-size: 1rem;
+  background: rgba(20, 20, 20, 0.95);
+  border: 2px solid rgba(0, 255, 0, 0.3);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 250px;
+}
+
+.game-dropdown:hover,
+.game-dropdown:focus {
+  outline: none;
+  border-color: #00ff00;
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+}
+
+.game-dropdown option {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+/* ===== FULLSCREEN GRAPH CANVAS ===== */
+.graph-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(0, 255, 0, 0.05), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(0, 255, 0, 0.05), transparent 40%);
+}
+
+/* ===== NODES ===== */
+.node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: transform 0.15s ease; /* BRŽE i samo za scale na hover */
+  animation: nodeAppear 0.6s ease-out;
+  cursor: grab; /* grab umesto pointer */
+  user-select: none; /* Ne selektuje tekst pri drag-u */
+  z-index: 10;
+}
+
+.node:active {
+  cursor: grabbing;
+}
+
+
+.node:hover {
+  transform: scale(1.15);
+  z-index: 20;
+}
+
+.node-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 255, 0, 0.3), transparent);
+  border: 3px solid #00ff00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  box-shadow: 
+    0 0 30px rgba(0, 255, 0, 0.5),
+    inset 0 0 20px rgba(0, 255, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.node:hover .node-avatar {
+  box-shadow: 
+    0 0 60px rgba(0, 255, 0, 0.9),
+    inset 0 0 30px rgba(0, 255, 0, 0.4);
+  border-width: 4px;
+}
+
+.node-name {
+  color: #00ff00;
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 
+    0 0 10px #00ff00,
+    0 0 20px rgba(0, 255, 0, 0.5),
+    2px 2px 4px rgba(0, 0, 0, 0.8);
+  background: transparent;
+  padding: 5px 0;
+}
+
+/* Central Node (You) - BEZ ANIMACIJE */
+.node-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+  animation: none !important; /* Ubija sve animacije */
+}
+
+.node-center .node-avatar {
+  width: 150px;
+  height: 150px;
+  font-size: 4.5rem;
+  border-width: 5px;
+  background: radial-gradient(circle, rgba(0, 255, 0, 0.5), transparent);
+  box-shadow: 
+    0 0 50px rgba(0, 255, 0, 0.7),
+    inset 0 0 30px rgba(0, 255, 0, 0.3);
+  /* OBRISANO: animation: centerPulse 3s infinite ease-in-out; */
+}
+
+.node-center .node-name {
+  font-size: 1.5rem;
+  padding: 8px 0;
+  text-shadow: 
+    0 0 15px #00ff00,
+    0 0 25px rgba(0, 255, 0, 0.7),
+    2px 2px 6px rgba(0, 0, 0, 0.9);
+}
+
+/* ===== SVG LINIJE (PRAVE KONEKCIJE) ===== */
+.connection-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #666;
+  font-size: 1.5rem;
+  text-align: center;
+  z-index: 5;
+}
+
+/* ===== CONNECTION INFO (FIXED BOTTOM) ===== */
+.connection-info {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  padding: 20px 40px;
+  background: rgba(20, 20, 20, 0.9);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  z-index: 90;
+  backdrop-filter: blur(10px);
+}
+
+.connection-info p {
+  color: #b0b0b0;
+  font-size: 1.1rem;
+}
+
+.connection-info .count {
+  color: #00ff00;
+  font-weight: 700;
+  font-size: 1.8rem;
+  text-shadow: 0 0 10px #00ff00;
+}
+
+.connection-info .game-name {
+  color: #00ff00;
+  font-weight: 600;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes nodeAppear {
+  from {
+    opacity: 0;
+    transform: scale(0) rotate(180deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes drawLine {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pulseLine {
+  0%, 100% {
+    opacity: 0.5;
+    stroke-width: 2;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 4;
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .graph-header {
+    top: 15px;
+    padding: 15px 20px;
+  }
+
+  .graph-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .game-selector {
+    top: 15px;
+    right: 15px;
+  }
+
+  .game-dropdown {
+    min-width: 180px;
+    padding: 10px 15px;
+    font-size: 0.9rem;
+  }
+
+  .node-avatar {
+    width: 70px;
+    height: 70px;
+    font-size: 2.2rem;
+  }
+
+  .node-center .node-avatar {
+    width: 110px;
+    height: 110px;
+    font-size: 3rem;
+  }
+
+  .node-name {
+    font-size: 0.9rem;
+  }
+
+  .back-btn {
+    top: 15px;
+    left: 15px;
+    padding: 10px 20px;
+  }
+
+  .connection-info {
+    bottom: 15px;
+    padding: 15px 25px;
+  }
+
+  .connection-info p {
+    font-size: 0.95rem;
+  }
+
+  .connection-info .count {
+    font-size: 1.4rem;
+  }
+}
+
+
+/* ===== DRAGGING EFFECT ===== */
+.node.dragging {
+  cursor: grabbing !important;
+  z-index: 100;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.node {
+  cursor: grab;
+  user-select: none;
+}
+
+.node:active {
+  cursor: grabbing;
+}
+
+/* Hint text */
+.connection-info .hint {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
+}
+
+/* Smooth SVG lines */
+.svg-line {
+  transition: d 0.3s ease;
+}
