@@ -586,6 +586,65 @@ app.get('/api/players/:username/recommendations/similar', async (req, res) => {
   }
 });
 
+// ==================== SOCIAL GRAPH ENDPOINT (SVE KONEKCIJE ZA IGRU) ====================
+app.post('/api/social-graph', async (req, res) => {
+  const session = driver.session();
+  try {
+    const { username, gameTitle } = req.body;
+
+    // Pronađi SVE igrače koji su ocenili ovu igru (osim trenutnog korisnika)
+    const playersResult = await session.run(
+      `MATCH (p:Player)-[:RATED]->(g:Game {title: $gameTitle})
+       WHERE p.username <> $username
+       RETURN DISTINCT p.username AS username
+       ORDER BY p.username
+       LIMIT 30`,
+      { username, gameTitle }
+    );
+
+    const players = playersResult.records.map(record => ({
+      username: record.get('username')
+    }));
+
+    // Ako nema drugih igrača, vrati prazno
+    if (players.length === 0) {
+      return res.json({ players: [], connections: [] });
+    }
+
+    // Pronađi SVE FOLLOWS veze između ovih igrača (uključujući trenutnog korisnika)
+    const allUsernames = [username, ...players.map(p => p.username)];
+    
+    const connectionsResult = await session.run(
+      `MATCH (p1:Player)-[f:FOLLOWS]->(p2:Player)
+       WHERE p1.username IN $usernames AND p2.username IN $usernames
+       RETURN p1.username AS from, p2.username AS to`,
+      { usernames: allUsernames }
+    );
+
+    const connections = connectionsResult.records.map(record => ({
+      from: record.get('from'),
+      to: record.get('to')
+    }));
+
+    console.log(`📊 Social graph za ${gameTitle}:`, {
+      players: players.length,
+      connections: connections.length
+    });
+
+    res.json({ 
+      players,
+      connections 
+    });
+
+  } catch (error) {
+    console.error('Social graph error:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
 // Vrati socijalnu mrežu igrača
 app.get('/api/players/:username/network', async (req, res) => {
   const session = driver.session();
