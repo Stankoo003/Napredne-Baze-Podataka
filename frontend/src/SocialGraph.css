@@ -125,21 +125,20 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  transition: transform 0.15s ease; /* BRŽE i samo za scale na hover */
+  transition: transform 0.15s ease;
   animation: nodeAppear 0.6s ease-out;
-  cursor: grab; /* grab umesto pointer */
-  user-select: none; /* Ne selektuje tekst pri drag-u */
+  cursor: grab;
+  user-select: none;
   z-index: 10;
 }
-
-.node:active {
-  cursor: grabbing;
-}
-
 
 .node:hover {
   transform: scale(1.15);
   z-index: 20;
+}
+
+.node:active {
+  cursor: grabbing;
 }
 
 .node-avatar {
@@ -179,13 +178,22 @@
   padding: 5px 0;
 }
 
-/* Central Node (You) - BEZ ANIMACIJE */
+/* ===== CENTRAL NODE (YOU) - POTPUNO ZAMRZNUT ===== */
+/* ===== CENTRAL NODE (YOU) - SAD SE MOŽE VUĆI! ===== */
 .node-center {
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   z-index: 50;
-  animation: none !important; /* Ubija sve animacije */
+  animation: nodeAppear 0.6s ease-out; /* Samo početna animacija */
+  transition: transform 0.15s ease; /* Isto kao ostali nodovi */
+  cursor: grab; /* Može se vući */
+}
+
+.node-center:hover {
+  transform: translate(-50%, -50%) scale(1.15); /* Hover efekat kao i ostali */
+  z-index: 50;
+}
+
+.node-center:active {
+  cursor: grabbing;
 }
 
 .node-center .node-avatar {
@@ -197,7 +205,7 @@
   box-shadow: 
     0 0 50px rgba(0, 255, 0, 0.7),
     inset 0 0 30px rgba(0, 255, 0, 0.3);
-  /* OBRISANO: animation: centerPulse 3s infinite ease-in-out; */
+  transition: all 0.3s ease;
 }
 
 .node-center .node-name {
@@ -208,6 +216,7 @@
     0 0 25px rgba(0, 255, 0, 0.7),
     2px 2px 6px rgba(0, 0, 0, 0.9);
 }
+
 
 /* ===== SVG LINIJE (PRAVE KONEKCIJE) ===== */
 .connection-svg {
@@ -220,6 +229,19 @@
   pointer-events: none;
 }
 
+.svg-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawLine 1.5s ease-out forwards, pulseLine 3s infinite ease-in-out 1.5s;
+  filter: drop-shadow(0 0 8px rgba(0, 255, 0, 0.6));
+}
+
+/* ===== DRAGGING EFFECT ===== */
+.node.dragging {
+  cursor: grabbing !important;
+  z-index: 100;
+  transform: translate(-50%, -50%) scale(1.1);
+}
 
 /* ===== EMPTY STATE ===== */
 .empty-state {
@@ -262,6 +284,13 @@
 .connection-info .game-name {
   color: #00ff00;
   font-weight: 600;
+}
+
+.connection-info .hint {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
 }
 
 /* ===== ANIMATIONS ===== */
@@ -360,32 +389,19 @@
   }
 }
 
-
-/* ===== DRAGGING EFFECT ===== */
-.node.dragging {
-  cursor: grabbing !important;
-  z-index: 100;
-  transform: translate(-50%, -50%) scale(1.1);
+/* ===== PEER CONNECTION LINIJE ===== */
+.svg-line-peer {
+  stroke-dasharray: 3 2;
+  animation: drawLine 1.5s ease-out forwards, pulsePeerLine 4s infinite ease-in-out 1.5s;
+  filter: drop-shadow(0 0 8px rgba(150, 255, 150, 0.6));
 }
 
-.node {
-  cursor: grab;
-  user-select: none;
+@keyframes pulsePeerLine {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.9;
+  }
 }
 
-.node:active {
-  cursor: grabbing;
-}
-
-/* Hint text */
-.connection-info .hint {
-  margin-top: 8px;
-  font-size: 0.9rem;
-  color: #666;
-  font-style: italic;
-}
-
-/* Smooth SVG lines */
-.svg-line {
-  transition: d 0.3s ease;
-}
