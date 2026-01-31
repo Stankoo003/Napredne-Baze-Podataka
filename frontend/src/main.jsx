@@ -5,7 +5,8 @@ import App from './App.jsx'
 import Login from './Login.jsx'
 import SocialGraph from './SocialGraph.jsx'
 import Signup from './Signup.jsx'
-import Profile from './Profile.jsx'
+import Forum from './pages/Forum';
+import Profile from './pages/Profile';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -16,6 +17,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/signup" element={<Signup />} />
         <Route path="/social-graph" element={<SocialGraph />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/forum" element={<Forum />} />
+        <Route path="/profile/:userId" element={<Profile />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,
