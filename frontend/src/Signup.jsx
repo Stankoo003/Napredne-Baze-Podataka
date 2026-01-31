@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import './Signup.css';
 
 function Signup() {
@@ -7,8 +8,11 @@ function Signup() {
     username: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    age: ''
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -16,21 +20,77 @@ function Signup() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError(''); // Resetuj grešku pri pisanju
   };
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     
     // Validacija lozinki
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+      setError('Passwords do not match!');
+      setLoading(false);
       return;
     }
 
-    // Ovde ćeš kasnije dodati API poziv ka backendu
-    console.log('Signup:', formData);
-    alert(`Welcome to PlayTrack, ${formData.username}!`);
-    // navigate('/login'); // Posle registracije ide na login
+    // Email regex validacija (frontend)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
+    // Username validacija
+    if (formData.username.length < 3) {
+      setError('Username must be at least 3 characters');
+      setLoading(false);
+      return;
+    }
+
+    // Password validacija
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // API poziv ka backend-u
+      const response = await axios.post('http://localhost:3001/api/players', {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        age: parseInt(formData.age) || 18
+      });
+
+      console.log('Signup success:', response.data);
+
+      // Sačuvaj korisnika u localStorage (za "login" stanje)
+      localStorage.setItem('currentUser', JSON.stringify({
+        username: response.data.player.username,
+        email: response.data.player.email,
+        age: response.data.player.age
+      }));
+
+      // Uspešna registracija - idi na početnu stranicu
+      alert(`Welcome to PlayTrack, ${formData.username}! 🎮`);
+      navigate('/'); // Vrati se na Home page
+
+    } catch (err) {
+      console.error('Signup error:', err);
+      
+      // Prikaži grešku sa backend-a
+      if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error);
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,9 +109,15 @@ function Signup() {
             <p className="signup-subtitle">Join the Gaming Network</p>
           </div>
 
+          {error && (
+            <div className="error-message">
+              ⚠️ {error}
+            </div>
+          )}
+
           <form onSubmit={handleSignup} className="signup-form">
             <div className="input-group">
-              <label htmlFor="username">Username</label>
+              <label htmlFor="username">Username *</label>
               <input
                 type="text"
                 id="username"
@@ -65,7 +131,7 @@ function Signup() {
             </div>
 
             <div className="input-group">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">Email *</label>
               <input
                 type="email"
                 id="email"
@@ -78,7 +144,21 @@ function Signup() {
             </div>
 
             <div className="input-group">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="age">Age (optional)</label>
+              <input
+                type="number"
+                id="age"
+                name="age"
+                value={formData.age}
+                onChange={handleChange}
+                placeholder="18"
+                min="13"
+                max="120"
+              />
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="password">Password *</label>
               <input
                 type="password"
                 id="password"
@@ -92,7 +172,7 @@ function Signup() {
             </div>
 
             <div className="input-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
+              <label htmlFor="confirmPassword">Confirm Password *</label>
               <input
                 type="password"
                 id="confirmPassword"
@@ -105,8 +185,12 @@ function Signup() {
               />
             </div>
 
-            <button type="submit" className="btn btn-signup">
-              Create Account
+            <button 
+              type="submit" 
+              className="btn btn-signup"
+              disabled={loading}
+            >
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
 
@@ -120,4 +204,3 @@ function Signup() {
 }
 
 export default Signup;
-

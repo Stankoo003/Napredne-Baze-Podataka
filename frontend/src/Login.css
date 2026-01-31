@@ -174,3 +174,28 @@
     font-size: 0.9rem;
   }
 }
+
+/* Error message styling */
+.error-message {
+  background: rgba(255, 50, 50, 0.2);
+  border: 1px solid rgba(255, 50, 50, 0.5);
+  color: #ff5050;
+  padding: 14px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 0.9rem;
+  animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10px); }
+  75% { transform: translateX(10px); }
+}
+
+.btn-login:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+

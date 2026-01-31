@@ -16,6 +16,92 @@ body {
   min-height: 100vh;
 }
 
+/* ===== NAVIGATION BAR ===== */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10, 10, 10, 0.95);
+  border-bottom: 2px solid rgba(0, 255, 0, 0.3);
+  padding: 15px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1001;
+  backdrop-filter: blur(10px);
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.2rem;
+  color: #fff;
+  font-weight: 700;
+}
+
+.logo-icon-nav {
+  font-size: 1.8rem;
+  filter: drop-shadow(0 0 15px #00ff00);
+  animation: pulseNav 2s infinite ease-in-out;
+}
+
+.logo-text-nav {
+  text-shadow: 0 0 10px #00ff00;
+  font-size: 1.2rem;
+}
+
+.nav-links {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.nav-btn {
+  background: transparent;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  color: #00ff00;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.nav-btn:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #00ff00;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.profile-btn {
+  border-color: #00ff00;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+}
+
+.signup-nav-btn {
+  background: #00ff00;
+  color: #0a0a0a;
+  border-color: #00ff00;
+}
+
+.signup-nav-btn:hover {
+  background: #00cc00;
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+}
+
+@keyframes pulseNav {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
 /* Scanline overlay effect (retro gaming) */
 .scanlines {
   position: fixed;
@@ -38,7 +124,7 @@ body {
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 100px 20px 40px;
   position: relative;
   z-index: 1;
 }
@@ -210,7 +296,7 @@ body {
   }
 }
 
-/* ===== FEATURES (VEĆE I CENTRIRANE) ===== */
+/* ===== FEATURES (VEÄ†E I CENTRIRANE) ===== */
 .features {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -304,11 +390,33 @@ body {
 }
 
 /* ===== RESPONSIVE ===== */
+/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
+  .navbar {
+    padding: 15px 20px;
+  }
+
+  .nav-logo {
+    font-size: 1rem;
+  }
+
+  .logo-icon-nav {
+    font-size: 1.5rem;
+  }
+
+  .logo-text-nav {
+    font-size: 1rem;
+  }
+
+  .nav-btn {
+    padding: 8px 15px;
+    font-size: 0.8rem;
+  }
+
   .hero {
     text-align: center;
   }
-
+  
   .hero-title {
     font-size: 2rem;
   }

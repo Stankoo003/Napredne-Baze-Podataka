@@ -1,19 +1,57 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import axios from 'axios';
 import './Login.css';
 
 function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    username: '',
+    password: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+    setError('');
+  };
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Ovde ćeš kasnije dodati API poziv ka backendu
-    console.log('Login:', { email, password });
-    alert(`Logged in as: ${email}`);
-    // navigate('/dashboard'); // Kasnije kad napraviš dashboard
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await axios.post('http://localhost:3001/api/players/login', {
+        username: formData.username,
+        password: formData.password
+      });
+
+      console.log('Login success:', response.data);
+
+      // Sačuvaj korisnika u localStorage
+      localStorage.setItem('currentUser', JSON.stringify(response.data.player));
+
+      alert(`Welcome back, ${formData.username}! 🎮`);
+      
+      // Redirect na homepage
+      navigate('/');
+      
+    } catch (err) {
+      console.error('Login error:', err);
+      
+      if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error);
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -32,15 +70,22 @@ function Login() {
             <p className="login-subtitle">Enter the Gaming Network</p>
           </div>
 
+          {error && (
+            <div className="error-message">
+              ⚠️ {error}
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="login-form">
             <div className="input-group">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="username">Username</label>
               <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="gamer@playtrack.com"
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Enter your username"
                 required
               />
             </div>
@@ -50,22 +95,26 @@ function Login() {
               <input
                 type="password"
                 id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
                 placeholder="••••••••"
                 required
               />
             </div>
 
-            <button type="submit" className="btn btn-login">
-              Login
+            <button 
+              type="submit" 
+              className="btn btn-login"
+              disabled={loading}
+            >
+              {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
 
           <div className="login-footer">
             <p>Don't have an account? <span className="link" onClick={() => navigate('/signup')}>Sign up</span></p>
           </div>
-
         </div>
       </div>
     </div>

@@ -53,42 +53,125 @@ driver.getServerInfo()
 
 // ==================== PLAYER ENDPOINTS ====================
 
-// Kreiraj igrača
+// Kreiraj igrača (SIGNUP)
 app.post('/api/players', async (req, res) => {
   const session = driver.session();
   try {
-    const { username, email, age } = req.body;
+    const { username, email, age, password } = req.body;
+    
+    // Validacija input-a
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Username, email i password su obavezni' });
+    }
+    
+    if (username.length < 3) {
+      return res.status(400).json({ error: 'Username mora imati minimum 3 karaktera' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password mora imati minimum 6 karaktera' });
+    }
+    
+    // Email regex validacija
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Neispravan email format' });
+    }
     
     // Proveri da li username već postoji
-    const existingPlayer = await session.run(
+    const existingUser = await session.run(
       `MATCH (p:Player {username: $username}) RETURN p`,
       { username }
     );
     
-    if (existingPlayer.records.length > 0) {
+    if (existingUser.records.length > 0) {
       return res.status(409).json({ error: 'Username već postoji' });
     }
     
+    // Proveri da li email već postoji
+    const existingEmail = await session.run(
+      `MATCH (p:Player {email: $email}) RETURN p`,
+      { email }
+    );
+    
+    if (existingEmail.records.length > 0) {
+      return res.status(409).json({ error: 'Email već postoji' });
+    }
+    
+    // Kreiraj novog igrača
     const result = await session.run(
-      `CREATE (p:Player {username: $username, email: $email, age: $age, createdAt: datetime()})
-       RETURN p`,
-      { username, email, age }
+      `CREATE (p:Player {
+        username: $username, 
+        email: $email, 
+        age: $age,
+        password: $password,
+        createdAt: datetime()
+      })
+      RETURN p`,
+      { username, email, age: age || 18, password }
     );
     
     const player = result.records[0].get('p').properties;
     
-    // Formatiraj datetime u string
+    // Ne vraćaj password u response-u
+    delete player.password;
+    
+    // Formatiraj datetime
     if (player.createdAt) {
       player.createdAt = player.createdAt.toString();
     }
     
-    res.json(player);
+    res.status(201).json({ 
+      message: 'Nalog uspešno kreiran',
+      player: player 
+    });
+    
   } catch (error) {
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
+
+// LOGIN endpoint
+app.post('/api/players/login', async (req, res) => {
+  const session = driver.session();
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username i password su obavezni' });
+    }
+    
+    const result = await session.run(
+      `MATCH (p:Player {username: $username, password: $password}) 
+       RETURN p`,
+      { username, password }
+    );
+    
+    if (result.records.length === 0) {
+      return res.status(401).json({ error: 'Pogrešan username ili password' });
+    }
+    
+    const player = result.records[0].get('p').properties;
+    delete player.password; // Ne šalji password nazad
+    
+    if (player.createdAt) {
+      player.createdAt = player.createdAt.toString();
+    }
+    
+    res.json({ 
+      message: 'Uspešno logovanje',
+      player: player 
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
 
 
 // Vrati sve igrače
@@ -133,6 +216,126 @@ app.get('/api/players/:username', async (req, res) => {
     await session.close();
   }
 });
+
+// Vrati kompletan profil igrača sa statistikom
+app.get('/api/players/:username/profile', async (req, res) => {
+  const session = driver.session();
+  try {
+    const { username } = req.params;
+    
+    // Osnovni podaci o igraču
+    const playerResult = await session.run(
+      `MATCH (p:Player {username: $username}) RETURN p`,
+      { username }
+    );
+    
+    if (playerResult.records.length === 0) {
+      return res.status(404).json({ error: 'Igrač ne postoji' });
+    }
+    
+    const player = playerResult.records[0].get('p').properties;
+    delete player.password; // Ne šalji password
+    
+    if (player.createdAt) {
+      player.createdAt = player.createdAt.toString();
+    }
+    
+    // Statistika - broj prijatelja (FOLLOWS)
+    const followsResult = await session.run(
+      `MATCH (p:Player {username: $username})-[:FOLLOWS]->(friend)
+       RETURN COUNT(friend) AS followsCount`,
+      { username }
+    );
+    const followsCount = followsResult.records[0].get('followsCount').toNumber();
+    
+    // Statistika - broj followera
+    const followersResult = await session.run(
+      `MATCH (follower)-[:FOLLOWS]->(p:Player {username: $username})
+       RETURN COUNT(follower) AS followersCount`,
+      { username }
+    );
+    const followersCount = followersResult.records[0].get('followersCount').toNumber();
+    
+    // Statistika - broj blokiranih
+    const blocksResult = await session.run(
+      `MATCH (p:Player {username: $username})-[:BLOCKS]->(blocked)
+       RETURN COUNT(blocked) AS blocksCount`,
+      { username }
+    );
+    const blocksCount = blocksResult.records[0].get('blocksCount').toNumber();
+    
+    // Statistika - broj ocenjenih igara
+    const ratedGamesResult = await session.run(
+      `MATCH (p:Player {username: $username})-[r:RATED]->(g:Game)
+       RETURN COUNT(g) AS ratedCount, AVG(r.score) AS avgRating`,
+      { username }
+    );
+    const ratedCount = ratedGamesResult.records[0].get('ratedCount').toNumber();
+    const avgRating = ratedGamesResult.records[0].get('avgRating') || 0;
+    
+    // Favorite games
+    const favoritesResult = await session.run(
+      `MATCH (p:Player {username: $username})-[:FAVORITE]->(g:Game)
+       RETURN g.title AS title, g.genre AS genre
+       ORDER BY g.title
+       LIMIT 10`,
+      { username }
+    );
+    const favoriteGames = favoritesResult.records.map(record => ({
+      title: record.get('title'),
+      genre: record.get('genre')
+    }));
+    
+    // Top rated games
+    const topRatedResult = await session.run(
+      `MATCH (p:Player {username: $username})-[r:RATED]->(g:Game)
+       WHERE r.score >= 4
+       RETURN g.title AS title, g.genre AS genre, r.score AS rating
+       ORDER BY r.score DESC, g.title
+       LIMIT 10`,
+      { username }
+    );
+    const topRatedGames = topRatedResult.records.map(record => ({
+      title: record.get('title'),
+      genre: record.get('genre'),
+      rating: record.get('rating')
+    }));
+    
+    // Lista prijatelja
+    const friendsListResult = await session.run(
+      `MATCH (p:Player {username: $username})-[:FOLLOWS]->(friend:Player)
+       RETURN friend.username AS username, friend.email AS email
+       ORDER BY friend.username
+       LIMIT 20`,
+      { username }
+    );
+    const friendsList = friendsListResult.records.map(record => ({
+      username: record.get('username'),
+      email: record.get('email')
+    }));
+    
+    // Vrati sve podatke
+    res.json({
+      player: player,
+      stats: {
+        followsCount: followsCount,
+        followersCount: followersCount,
+        blocksCount: blocksCount,
+        ratedGamesCount: ratedCount,
+        averageRating: avgRating ? avgRating.toFixed(1) : '0.0'
+      },
+      favoriteGames: favoriteGames,
+      topRatedGames: topRatedGames,
+      friendsList: friendsList
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
 
 
 // ==================== GAME ENDPOINTS ====================

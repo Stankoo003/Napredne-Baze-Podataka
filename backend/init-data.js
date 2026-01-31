@@ -20,13 +20,13 @@ async function initData() {
     // IGRAČI
     console.log('🔄 Kreiranje igrača...');
     await session.run(`
-      CREATE (p1:Player {username: 'marko', email: 'marko@test.com', age: 25, createdAt: datetime()})
-      CREATE (p2:Player {username: 'ana', email: 'ana@test.com', age: 22, createdAt: datetime()})
-      CREATE (p3:Player {username: 'stefan', email: 'stefan@test.com', age: 28, createdAt: datetime()})
-      CREATE (p4:Player {username: 'jelena', email: 'jelena@test.com', age: 24, createdAt: datetime()})
-      CREATE (p5:Player {username: 'nikola', email: 'nikola@test.com', age: 26, createdAt: datetime()})
-      CREATE (p6:Player {username: 'milica', email: 'milica@test.com', age: 23, createdAt: datetime()})
-    `);
+        CREATE (p1:Player {username: 'marko', email: 'marko@test.com', age: 25, password: 'marko123', createdAt: datetime()})
+        CREATE (p2:Player {username: 'ana', email: 'ana@test.com', age: 22, password: 'ana123', createdAt: datetime()})
+        CREATE (p3:Player {username: 'stefan', email: 'stefan@test.com', age: 28, password: 'stefan123', createdAt: datetime()})
+        CREATE (p4:Player {username: 'jelena', email: 'jelena@test.com', age: 24, password: 'jelena123', createdAt: datetime()})
+        CREATE (p5:Player {username: 'nikola', email: 'nikola@test.com', age: 26, password: 'nikola123', createdAt: datetime()})
+        CREATE (p6:Player {username: 'milica', email: 'milica@test.com', age: 23, password: 'milica123', createdAt: datetime()})
+      `);
     console.log('✅ 6 igrača kreirano');
     
     // IGRE

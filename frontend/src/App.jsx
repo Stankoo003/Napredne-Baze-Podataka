@@ -1,11 +1,45 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './App.css';
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('currentUser'));
+    setCurrentUser(user);
+  }, []);
   return (
     <div className="app">
-      <div className="scanlines"></div>
-      <div className="container">
-        
+  <div className="scanlines"></div>
+  
+  {/* Navigation Bar */}
+  <nav className="navbar">
+    <div className="nav-logo">
+      <span className="logo-icon-nav">🎮</span>
+      <span className="logo-text-nav">Play<span className="highlight">Track</span></span>
+    </div>
+    
+    <div className="nav-links">
+      {currentUser ? (
+        <button className="nav-btn profile-btn" onClick={() => navigate('/profile')}>
+          👤 {currentUser.username}
+        </button>
+      ) : (
+        <>
+          <button className="nav-btn" onClick={() => navigate('/login')}>
+            Login
+          </button>
+          <button className="nav-btn signup-nav-btn" onClick={() => navigate('/signup')}>
+            Sign Up
+          </button>
+        </>
+      )}
+    </div>
+  </nav>
+  
+  <div className="container">        
         {/* Header sa logom */}
         <header className="header">
           <div className="logo">
