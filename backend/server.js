@@ -42,6 +42,32 @@ console.log('✅ Neo4j povezan:', info.address);
 console.error('❌ Neo4j greška:', err);
 });
 
+const cassandraInit = require('./cassandra-init');
+
+let cassandraReady = false;
+let cassandraClient = null;
+
+(async function initCassandraWithRetry() {
+  let retries = 10;
+  while (retries > 0) {
+    try {
+      cassandraClient = await cassandraInit.initCassandra();
+      cassandraReady = true;
+      console.log('✅ Cassandra spremna za upotrebu');
+      break;
+    } catch (error) {
+      retries--;
+      console.log(`⏳ Čekam Cassandra... (preostalo pokušaja: ${retries})`);
+      if (retries === 0) {
+        console.error('❌ Cassandra nije dostupna nakon 10 pokušaja:', error.message);
+      }
+      await new Promise(resolve => setTimeout(resolve, 5000)); 
+    }
+  }
+})();
+ 
+
+
 app.post('/api/players', async (req, res) => {
 const session = driver.session();
 try {
@@ -953,12 +979,159 @@ app.get('/health', (req, res) => {
 res.json({ status: 'OK', timestamp: new Date() });
 });
 
+// ============= CASSANDRA ENDPOINTS =============
+
+// Update player stats
+app.post('/api/stats/player', async (req, res) => {
+  if (!cassandraReady) {
+    return res.status(503).json({ error: 'Cassandra nije dostupna' });
+  }
+
+  try {
+    const { username, gameTitle, playtime, achievementsCount, level } = req.body;
+
+    const query = `
+      INSERT INTO player_stats (username, game_title, total_playtime, last_played, achievements_count, level)
+      VALUES (?, ?, ?, toTimestamp(now()), ?, ?)
+    `;
+    
+    await cassandraClient.execute(query, [username, gameTitle, playtime || 0, achievementsCount || 0, level || 1], { prepare: true });
+
+    res.json({ message: 'Player stats updated successfully' });
+  } catch (error) {
+    console.error('Cassandra error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get player stats
+app.get('/api/stats/player/:username', async (req, res) => {
+  if (!cassandraReady) {
+    return res.status(503).json({ error: 'Cassandra nije dostupna' });
+  }
+
+  try {
+    const { username } = req.params;
+
+    const query = 'SELECT * FROM player_stats WHERE username = ?';
+    const result = await cassandraClient.execute(query, [username], { prepare: true });
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update game leaderboard
+app.post('/api/leaderboard/game', async (req, res) => {
+  if (!cassandraReady) {
+    return res.status(503).json({ error: 'Cassandra nije dostupna' });
+  }
+
+  try {
+    const { gameTitle, username, score } = req.body;
+
+    const query = `
+      INSERT INTO game_leaderboard (game_title, username, score, updated_at)
+      VALUES (?, ?, ?, toTimestamp(now()))
+    `;
+    
+    await cassandraClient.execute(query, [gameTitle, username, score], { prepare: true });
+
+    res.json({ message: 'Leaderboard updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get game leaderboard (top 100)
+app.get('/api/leaderboard/game/:gameTitle', async (req, res) => {
+  if (!cassandraReady) {
+    return res.status(503).json({ error: 'Cassandra nije dostupna' });
+  }
+
+  try {
+    const { gameTitle } = req.params;
+    const limit = parseInt(req.query.limit) || 100;
+
+    const query = 'SELECT * FROM game_leaderboard WHERE game_title = ? LIMIT ?';
+    const result = await cassandraClient.execute(query, [gameTitle, limit], { prepare: true });
+
+    const leaderboard = result.rows.map((row, index) => ({
+      rank: index + 1,
+      username: row.username,
+      score: row.score,
+      updatedAt: row.updated_at
+    }));
+
+    res.json(leaderboard);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update global leaderboard
+app.post('/api/leaderboard/global', async (req, res) => {
+  if (!cassandraReady) {
+    return res.status(503).json({ error: 'Cassandra nije dostupna' });
+  }
+
+  try {
+    const { username, totalScore, gamesPlayed, avgRating } = req.body;
+
+    const query = `
+      INSERT INTO global_leaderboard (username, total_score, games_played, avg_rating, updated_at)
+      VALUES (?, ?, ?, ?, toTimestamp(now()))
+    `;
+    
+    await cassandraClient.execute(query, [username, totalScore, gamesPlayed, avgRating], { prepare: true });
+
+    res.json({ message: 'Global leaderboard updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get global leaderboard (top 100)
+app.get('/api/leaderboard/global', async (req, res) => {
+  if (!cassandraReady) {
+    return res.status(503).json({ error: 'Cassandra nije dostupna' });
+  }
+
+  try {
+    const query = 'SELECT * FROM global_leaderboard LIMIT 100';
+    const result = await cassandraClient.execute(query);
+
+    // Sortiraj po total_score
+    const leaderboard = result.rows
+      .sort((a, b) => Number(b.total_score) - Number(a.total_score))
+      .map((row, index) => ({
+        rank: index + 1,
+        username: row.username,
+        totalScore: Number(row.total_score),
+        gamesPlayed: row.games_played,
+        avgRating: parseFloat(row.avg_rating),
+        updatedAt: row.updated_at
+      }));
+
+    res.json(leaderboard);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
 console.log(`🚀 Backend radi na http://localhost:${PORT}`);
 });
 
 process.on('SIGINT', async () => {
-await driver.close();
-process.exit(0);
+  console.log('🛑 Zatvaram konekcije...');
+  await driver.close();
+  if (cassandraClient) {
+    await cassandraClient.shutdown();
+  }
+  process.exit(0);
 });
+
