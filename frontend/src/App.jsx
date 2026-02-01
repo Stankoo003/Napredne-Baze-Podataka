@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProfileCard, TopicCard, EmptyState } from './SearchResultCard';
 import './App.css';
@@ -6,9 +6,11 @@ import './App.css';
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('all'); // all, users, topics
+  const [activeTab, setActiveTab] = useState('all');
   const [searchResults, setSearchResults] = useState({ users: [], topics: [] });
   const [isSearching, setIsSearching] = useState(false);
+  const [joystickOffset, setJoystickOffset] = useState(0);
+  const searchResultsRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,7 +18,15 @@ function App() {
     setCurrentUser(user);
   }, []);
 
-  // Search funkcija
+  useEffect(() => {
+    if (searchResultsRef.current && searchQuery.length >= 2) {
+      const height = searchResultsRef.current.scrollHeight;
+      setJoystickOffset(height + 30);
+    } else {
+      setJoystickOffset(0);
+    }
+  }, [searchResults, searchQuery, activeTab]);
+
   const handleSearch = async (query) => {
     setSearchQuery(query);
     
@@ -28,7 +38,6 @@ function App() {
     setIsSearching(true);
     
     try {
-      // Paralelne pretrage
       const [usersRes, topicsRes] = await Promise.all([
         fetch(`http://localhost:3001/api/users/search?q=${query}`),
         fetch(`http://localhost:3001/api/topics/search?q=${query}`)
@@ -49,13 +58,13 @@ function App() {
     }
   };
 
-  const handleUserClick = (userId) => {
-    navigate(`/profile/${userId}`);
+  const handleUserClick = (username) => {
+    navigate(`/profile/${username}`);
     clearSearch();
   };
 
   const handleTopicClick = (topicId) => {
-    navigate(`/topic/${topicId}`);
+    navigate(`/forum/${topicId}`);
     clearSearch();
   };
 
@@ -64,11 +73,10 @@ function App() {
     setSearchResults({ users: [], topics: [] });
   };
 
-  // Filtrirani rezultati po tabu
   const getFilteredResults = () => {
     if (activeTab === 'users') return { users: searchResults.users, topics: [] };
     if (activeTab === 'topics') return { users: [], topics: searchResults.topics };
-    return searchResults; // all
+    return searchResults;
   };
 
   const filtered = getFilteredResults();
@@ -95,7 +103,6 @@ function App() {
         </filter>
       </defs>
       
-      {/* Wave Path */}
       <path 
         className="wave-path"
         d="M 0,900 Q 150,850 300,880 T 600,860 T 900,890 T 1200,850" 
@@ -105,7 +112,6 @@ function App() {
         filter="url(#glow)"
       />
       
-      {/* Second wave za depth */}
       <path 
         className="wave-path-2"
         d="M 0,920 Q 150,870 300,900 T 600,880 T 900,910 T 1200,870" 
@@ -116,7 +122,6 @@ function App() {
       />
     </svg>
       
-      {/* Navigation Bar */}
       <nav className="navbar">
         <div className="nav-logo">
           <span className="logo-icon-nav">🎮</span>
@@ -142,7 +147,6 @@ function App() {
       </nav>
       
       <div className="container">        
-        {/* Header sa logom */}
         <header className="header">
           <div className="logo">
             <span className="logo-icon">🎮</span>
@@ -153,7 +157,6 @@ function App() {
           <p className="tagline">Find Your Next Gaming Obsession</p>
         </header>
 
-        {/* Hero sekcija */}
         <section className="hero">
           <div className="hero-content">
             <h2 className="hero-title">
@@ -165,7 +168,6 @@ function App() {
               and recommend titles loved by your friends and players with similar taste.
             </p>
 
-            {/* 🔍 MULTI-CATEGORY SEARCH */}
             <div className="hero-search-container">
               <div className="search-bar-wrapper">
                 <span className="search-icon-input">🔍</span>
@@ -179,7 +181,6 @@ function App() {
                 {isSearching && <div className="search-loader">⏳</div>}
               </div>
 
-              {/* Search Tabs */}
               {searchQuery.length >= 2 && (
                 <div className="search-tabs">
                   <button 
@@ -203,19 +204,16 @@ function App() {
                 </div>
               )}
 
-              {/* Search Results */}
               {searchQuery.length >= 2 && hasResults && (
-                <div className="hero-search-results">
-                  {/* Users */}
+                <div className="hero-search-results" ref={searchResultsRef}>
                   {filtered.users.map(user => (
                     <ProfileCard 
-                      key={`user-${user.id}`}
+                      key={`user-${user.username}`}
                       user={user}
-                      onClick={() => handleUserClick(user.id)}
+                      onClick={() => handleUserClick(user.username)}
                     />
                   ))}
 
-                  {/* Topics */}
                   {filtered.topics.map(topic => (
                     <TopicCard
                       key={`topic-${topic.id}`}
@@ -226,49 +224,47 @@ function App() {
                 </div>
               )}
 
-              {/* Empty State */}
               {searchQuery.length >= 2 && !hasResults && !isSearching && (
-                <div className="hero-search-results">
+                <div className="hero-search-results" ref={searchResultsRef}>
                   <EmptyState query={searchQuery} type={activeTab} />
                 </div>
               )}
             </div>
 
-            <div className="cta-buttons">
-              <button className="btn btn-primary" onClick={() => window.location.href = '/login'}>
-                Start Exploring
-              </button>
-              <button className="btn btn-secondary">Learn More</button>
-            </div>
+            {!currentUser && (
+              <div className="cta-buttons">
+                <button className="btn btn-primary" onClick={() => window.location.href = '/login'}>
+                  Start Exploring
+                </button>
+                <button className="btn btn-secondary">Learn More</button>
+              </div>
+            )}
           </div>
 
-          {/* Interaktivni džojstik */}
-          <div className="joystick-visual">
+          <div 
+            className="joystick-visual"
+            style={{
+              transform: joystickOffset > 0 ? `translateY(${joystickOffset}px)` : 'translateY(0)',
+              marginTop: joystickOffset > 0 ? `${joystickOffset}px` : '0'
+            }}
+          >
             <div className="joystick">🕹️</div>
           </div>
         </section>
 
-        {/* Features */}
-<section className="features">
-  <div className="feature-card" onClick={() => navigate('/social-graph')}>
-    <div className="feature-icon">🔗</div>
-    <h3>Social Graph</h3>
-    <p>Connect with gamers & track relationships</p>
-  </div>   
-  <div className="feature-card">
-    <div className="feature-icon">⭐</div>
-    <h3>Smart Ratings</h3>
-    <p>Rate games & see friend reviews</p>
-  </div>
-  <div className="feature-card" onClick={() => navigate('/forum')}>
-    <div className="feature-icon">💬</div>
-    <h3>Gaming Forum</h3>
-    <p>Discuss games, news & join the community</p>
-  </div>
-</section>
+        <section className="features">
+          <div className="feature-card" onClick={() => navigate('/social-graph')}>
+            <div className="feature-icon">🔗</div>
+            <h3>Social Graph</h3>
+            <p>Connect with gamers & track relationships</p>
+          </div>   
+          <div className="feature-card" onClick={() => navigate('/forum')}>
+            <div className="feature-icon">💬</div>
+            <h3>Gaming Forum</h3>
+            <p>Discuss games, news & join the community</p>
+          </div>
+        </section>
 
-
-        {/* Footer */}
         <footer className="footer">
           <p>Powered by <span className="tech-badge">Neo4j</span> × <span className="tech-badge">React</span></p>
         </footer>

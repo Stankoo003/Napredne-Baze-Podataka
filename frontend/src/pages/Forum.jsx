@@ -1,237 +1,295 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import TopBar from '../components/TopBar';
 import './Forum.css';
 
 function Forum() {
   const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortBy, setSortBy] = useState('hot'); // hot, new, top
-
-  // Mock data - kasnije iz backend-a
-  const allTopics = [
-    {
-      id: 1,
-      title: 'Game of the Year 2025 - Your Predictions?',
-      author: 'Marko',
-      category: 'Discussion',
-      preview: 'What do you think will win GOTY 2025? My bet is on the new Zelda...',
-      replies: 47,
-      likes: 128,
-      createdAt: '2 hours ago',
-      isPinned: true
-    },
-    {
-      id: 2,
-      title: 'CS2 Major Copenhagen 2026 - Watch Party Thread',
-      author: 'Stefan',
-      category: 'Esports',
-      preview: 'Who\'s watching the major? Let\'s discuss the matches live!',
-      replies: 203,
-      likes: 89,
-      createdAt: '5 hours ago',
-      isPinned: false
-    },
-    {
-      id: 3,
-      title: 'New Minecraft Update 1.22 - Caves & Cliffs Part 3',
-      author: 'Ana',
-      category: 'News',
-      preview: 'Mojang just announced the next major update! Deep dark biome expansion...',
-      replies: 56,
-      likes: 234,
-      createdAt: '1 day ago',
-      isPinned: false
-    },
-    {
-      id: 4,
-      title: 'Looking for Valorant Team - EU Diamond',
-      author: 'Nikola',
-      category: 'LFG',
-      preview: 'Diamond 2 player looking for serious team. Main roles: Controller/Sentinel',
-      replies: 12,
-      likes: 23,
-      createdAt: '3 hours ago',
-      isPinned: false
-    },
-    {
-      id: 5,
-      title: 'The Best Gaming Moments of 2025 - Share Yours!',
-      author: 'Jovana',
-      category: 'Discussion',
-      preview: 'What was your most memorable gaming moment this year? Mine was...',
-      replies: 91,
-      likes: 167,
-      createdAt: '1 day ago',
-      isPinned: false
-    },
-    {
-      id: 6,
-      title: 'League of Legends Season 15 Patch Notes Discussion',
-      author: 'Janko',
-      category: 'News',
-      preview: 'New champions, item changes, and jungle overhaul. Thoughts?',
-      replies: 134,
-      likes: 201,
-      createdAt: '6 hours ago',
-      isPinned: false
-    }
-  ];
+  const [topics, setTopics] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchResults, setSearchResults] = useState({ topics: [], users: [] });
+  const [isSearching, setIsSearching] = useState(false);
+  
+  const debounceTimerRef = useRef(null);
 
   const categories = [
     { id: 'all', name: 'All Topics', icon: '🌐' },
-    { id: 'discussion', name: 'Discussion', icon: '💭' },
-    { id: 'news', name: 'News', icon: '📰' },
-    { id: 'esports', name: 'Esports', icon: '🏆' },
-    { id: 'lfg', name: 'Looking for Group', icon: '👥' }
+    { id: 'Discussion', name: 'Discussion', icon: '💭' },
+    { id: 'News', name: 'News', icon: '📰' },
+    { id: 'Esports', name: 'Esports', icon: '🏆' },
+    { id: 'Looking for Group', name: 'Looking for Group', icon: '👥' },
+    { id: 'Questions', name: 'Questions', icon: '❓' }
   ];
 
-  // Filter topics
-  const filteredTopics = allTopics.filter(topic => {
-    const matchesSearch = topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         topic.preview.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || 
-                           topic.category.toLowerCase() === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('currentUser'));
+    setCurrentUser(user);
+  }, []);
+
+  useEffect(() => {
+    if (!isSearching) {
+      fetchTopics();
+    }
+  }, [selectedCategory, currentPage, isSearching]);
+
+  const fetchTopics = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get('http://localhost:3001/api/topics', {
+        params: {
+          category: selectedCategory,
+          page: currentPage,
+          limit: 10
+        }
+      });
+      setTopics(response.data.topics || []);
+      setTotalPages(response.data.totalPages || 1);
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+      setTopics([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (query.trim().length === 0) {
+      setIsSearching(false);
+      setSearchResults({ topics: [], users: [] });
+      return;
+    }
+
+    setIsSearching(true);
+    setLoading(true);
+
+    debounceTimerRef.current = setTimeout(() => {
+      performSearch(query);
+    }, 300);
+  };
+
+  const performSearch = async (query) => {
+    try {
+      const [topicsRes, usersRes] = await Promise.all([
+        axios.get('http://localhost:3001/api/topics/search', { params: { q: query } }),
+        axios.get('http://localhost:3001/api/users/search', { params: { q: query } })
+      ]);
+
+      setSearchResults({
+        topics: topicsRes.data.topics || [],
+        users: usersRes.data.users || []
+      });
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults({ topics: [], users: [] });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTopicClick = (topicId) => {
-    navigate(`/topic/${topicId}`);
+    navigate(`/forum/${topicId}`);
   };
+
+  const handleUserClick = (username) => {
+    navigate(`/profile/${username}`);
+  };
+
+  const handleCreatePost = () => {
+    if (!currentUser) {
+      alert('You must be logged in to create a post!');
+      navigate('/login');
+      return;
+    }
+    navigate('/forum/new');
+  };
+
+  const getTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    if (seconds < 2592000) return `${Math.floor(seconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const displayTopics = isSearching ? searchResults.topics : topics;
+  const displayUsers = isSearching ? searchResults.users : [];
+  const hasResults = displayTopics.length > 0 || displayUsers.length > 0;
 
   return (
     <div className="forum-page">
+      <TopBar showBackButton={true} />
       <div className="scanlines"></div>
 
-      {/* Navbar */}
-      <nav className="navbar">
-        <div className="nav-logo" onClick={() => navigate('/')}>
-          <span className="logo-icon-nav">🎮</span>
-          <span className="logo-text-nav">Play<span className="highlight">Track</span></span>
-        </div>
-        <button className="nav-btn" onClick={() => navigate('/')}>
-          ← Back to Home
-        </button>
-      </nav>
-
       <div className="forum-container">
-        
-        {/* Header */}
-        <header className="forum-header">
-          <h1 className="forum-title">
-            💬 Gaming <span className="highlight">Forum</span>
-          </h1>
-          <p className="forum-subtitle">Discuss games, news, and connect with the community</p>
-        </header>
+        <div className="forum-header">
+          <h1 className="forum-title">Gaming Forum</h1>
+          <p className="forum-subtitle">Discuss, Share, Connect</p>
+        </div>
 
-        {/* Search Bar */}
         <div className="forum-search-section">
-          <div className="search-bar-wrapper">
-            <span className="search-icon-input">🔍</span>
-            <input 
-              type="text"
-              className="forum-search-input"
-              placeholder="Search topics, discussions, news..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          <input
+            type="text"
+            className="forum-search-input"
+            placeholder="🔍 Search topics or users..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+          />
         </div>
 
-        {/* Controls */}
-        <div className="forum-controls">
-          {/* Categories */}
-          <div className="category-filters">
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                className={`category-btn ${selectedCategory === cat.id ? 'active' : ''}`}
-                onClick={() => setSelectedCategory(cat.id)}
-              >
-                <span className="cat-icon">{cat.icon}</span>
-                {cat.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Sort */}
-          <div className="sort-controls">
-            <button 
-              className={`sort-btn ${sortBy === 'hot' ? 'active' : ''}`}
-              onClick={() => setSortBy('hot')}
-            >
-              🔥 Hot
-            </button>
-            <button 
-              className={`sort-btn ${sortBy === 'new' ? 'active' : ''}`}
-              onClick={() => setSortBy('new')}
-            >
-              ⭐ New
-            </button>
-            <button 
-              className={`sort-btn ${sortBy === 'top' ? 'active' : ''}`}
-              onClick={() => setSortBy('top')}
-            >
-              📈 Top
-            </button>
-          </div>
-        </div>
-
-        {/* Topics List */}
-        <div className="topics-list">
-          {filteredTopics.length > 0 ? (
-            filteredTopics.map(topic => (
-              <div 
-                key={topic.id} 
-                className={`topic-item ${topic.isPinned ? 'pinned' : ''}`}
-                onClick={() => handleTopicClick(topic.id)}
-              >
-                {topic.isPinned && <div className="pin-badge">📌 Pinned</div>}
-                
-                <div className="topic-votes">
-                  <button className="vote-btn upvote">▲</button>
-                  <span className="vote-count">{topic.likes}</span>
-                  <button className="vote-btn downvote">▼</button>
-                </div>
-
-                <div className="topic-content">
-                  <div className="topic-header-row">
-                    <span className="topic-category-badge">{topic.category}</span>
-                    <span className="topic-meta">
-                      Posted by <span className="topic-author">{topic.author}</span> • {topic.createdAt}
-                    </span>
-                  </div>
-                  
-                  <h3 className="topic-title">{topic.title}</h3>
-                  <p className="topic-preview">{topic.preview}</p>
-                  
-                  <div className="topic-footer">
-                    <div className="topic-stats">
-                      <span className="stat-item">
-                        💬 {topic.replies} replies
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="topic-arrow">→</div>
-              </div>
-            ))
-          ) : (
-            <div className="empty-topics">
-              <div className="empty-icon">🔍</div>
-              <p>No topics found</p>
-              <span>Try different keywords or category</span>
+        {!isSearching && (
+          <div className="forum-controls">
+            <div className="category-filters">
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  className={`category-btn ${selectedCategory === cat.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedCategory(cat.id);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <span className="cat-icon">{cat.icon}</span>
+                  {cat.name}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Create Post Button */}
-        <button className="create-post-btn">
-          <span className="create-icon">✏️</span>
-          Create New Topic
-        </button>
+        {loading ? (
+          <div className="empty-topics">
+            <div className="empty-icon">⏳</div>
+            <p>Loading...</p>
+          </div>
+        ) : !hasResults ? (
+          <div className="empty-topics">
+            <div className="empty-icon">📭</div>
+            <p>No results found</p>
+            {isSearching && <span>Try different keywords</span>}
+          </div>
+        ) : (
+          <>
+            {displayUsers.length > 0 && (
+              <div className="search-users-section">
+                <h2 className="search-section-title">
+                  <span className="section-icon">👤</span>
+                  Users
+                </h2>
+                <div className="users-grid">
+                  {displayUsers.map(user => (
+                    <div
+                      key={user.username}
+                      className="user-card"
+                      onClick={() => handleUserClick(user.username)}
+                    >
+                      <div className="user-card-avatar">🎮</div>
+                      <div className="user-card-info">
+                        <h3 className="user-card-name">{user.username}</h3>
+                        <p className="user-card-email">{user.email}</p>
+                        <div className="user-card-stats">
+                          <span>{user.gamesCount} games</span>
+                          <span>•</span>
+                          <span>{user.friendsCount} connections</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
+            {displayTopics.length > 0 && (
+              <>
+                {isSearching && (
+                  <h2 className="search-section-title">
+                    <span className="section-icon">📝</span>
+                    Topics
+                  </h2>
+                )}
+                <div className="topics-list">
+                  {displayTopics.map(topic => (
+                    <div
+                      key={topic.id}
+                      className="topic-item"
+                      onClick={() => handleTopicClick(topic.id)}
+                    >
+                      <div className="topic-votes">
+                        <button className="vote-btn">▲</button>
+                        <span className="vote-count">0</span>
+                        <button className="vote-btn">▼</button>
+                      </div>
+
+                      <div className="topic-content">
+                        <div className="topic-header-row">
+                          <span className="topic-category-badge">{topic.category}</span>
+                          <span className="topic-meta">
+                            Posted by <span className="topic-author">{topic.authorUsername}</span> • {getTimeAgo(topic.createdAt)}
+                          </span>
+                        </div>
+
+                        <h3 className="topic-title">{topic.title}</h3>
+                        <p className="topic-preview">{topic.content}</p>
+
+                        <div className="topic-footer">
+                          <div className="topic-stats">
+                            <span className="stat-item">💬 {topic.commentCount || 0} comments</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="topic-arrow">→</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {!isSearching && totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  className="pagination-btn"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                >
+                  ← Previous
+                </button>
+                <span className="pagination-info">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  className="pagination-btn"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {currentUser && (
+          <button className="create-post-btn" onClick={handleCreatePost}>
+            <span>✏️</span> Create New Topic
+          </button>
+        )}
       </div>
     </div>
   );

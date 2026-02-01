@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Profile.css';
 
+
 function Profile() {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+
   useEffect(() => {
-    // Proveri da li je korisnik ulogovan
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     
     if (!currentUser) {
@@ -19,9 +20,10 @@ function Profile() {
       return;
     }
 
-    // Fetch profil podatke
+
     fetchProfile(currentUser.username);
   }, [navigate]);
+
 
   const fetchProfile = async (username) => {
     try {
@@ -35,11 +37,13 @@ function Profile() {
     }
   };
 
+
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
     alert('Logged out successfully!');
     navigate('/');
   };
+
 
   if (loading) {
     return (
@@ -52,6 +56,7 @@ function Profile() {
       </div>
     );
   }
+
 
   if (error || !profileData) {
     return (
@@ -67,7 +72,9 @@ function Profile() {
     );
   }
 
+
   const { player, stats, favoriteGames, topRatedGames, friendsList } = profileData;
+
 
   return (
     <div className="profile-page">
@@ -77,12 +84,8 @@ function Profile() {
         ← Back to Home
       </button>
 
-      <button className="logout-btn" onClick={handleLogout}>
-        Logout 🚪
-      </button>
 
       <div className="profile-container">
-        {/* Header Section */}
         <div className="profile-header">
           <div className="profile-avatar">
             <span className="avatar-icon">🎮</span>
@@ -97,10 +100,13 @@ function Profile() {
               <span className="meta-separator">|</span>
               <span className="meta-item">Member since: {new Date(player.createdAt).toLocaleDateString()}</span>
             </div>
+            <button className="logout-btn" onClick={handleLogout}>
+              Logout 🚪
+            </button>
           </div>
         </div>
 
-        {/* Stats Grid */}
+
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-icon">👥</div>
@@ -127,10 +133,9 @@ function Profile() {
           </div>
         </div>
 
-        {/* Content Sections */}
+
         <div className="profile-content">
           
-          {/* Top Rated Games */}
           <div className="section-box">
             <h2 className="section-title">
               <span className="title-icon">🌟</span>
@@ -155,7 +160,7 @@ function Profile() {
             )}
           </div>
 
-          {/* Favorite Games */}
+
           <div className="section-box">
             <h2 className="section-title">
               <span className="title-icon">💚</span>
@@ -178,7 +183,7 @@ function Profile() {
             )}
           </div>
 
-          {/* Friends List */}
+
           <div className="section-box">
             <h2 className="section-title">
               <span className="title-icon">👥</span>
@@ -201,10 +206,12 @@ function Profile() {
             )}
           </div>
 
+
         </div>
       </div>
     </div>
   );
 }
+
 
 export default Profile;
