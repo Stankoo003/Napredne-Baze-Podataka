@@ -1,20 +1,50 @@
 version: '3.8'
 
 services:
-  # Neo4j Database
+  # ===== Neo4j Graph Database =====
   neo4j:
     image: neo4j:latest
     container_name: projekat-neo4j
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "7474:7474"  # Browser UI
+      - "7687:7687"  # Bolt protocol
     environment:
       NEO4J_AUTH: neo4j/password123
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_apoc_export_file_enabled: "true"
       NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_dbms_memory_heap_max__size: 512M
+      NEO4J_dbms_memory_pagecache_size: 256M
     volumes:
       - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - projekat_net
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password123 'RETURN 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ===== Cassandra Time-Series Database =====
+  cassandra:
+    image: cassandra:4.1
+    container_name: projekat-cassandra
+    ports:
+      - "9042:9042"  # CQL native transport
+    environment:
+      CASSANDRA_CLUSTER_NAME: GameCluster
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
+      CASSANDRA_NUM_TOKENS: 256
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+      - cassandra_logs:/var/log/cassandra
     networks:
       - projekat_net
     healthcheck:
@@ -46,14 +76,28 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    restart: unless-stopped
 
-  # Backend API (Node.js + Express)
+  # ===== Backend API (Node.js + Express) =====
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: projekat-backend
     ports:
       - "3001:3001"
     environment:
+      # Server config
+      NODE_ENV: development
+      PORT: 3001
+      
+      # Neo4j config
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: password123
@@ -61,7 +105,18 @@ services:
       CASSANDRA_PORT: 9042
       CASSANDRA_DATACENTER: datacenter1
       CASSANDRA_KEYSPACE: game_stats
+      
+      # Cassandra config
+      CASSANDRA_HOST: cassandra
+      CASSANDRA_PORT: 9042
+      CASSANDRA_DATACENTER: datacenter1
+      CASSANDRA_KEYSPACE: game_stats
+      CASSANDRA_REPLICATION_FACTOR: 1
     depends_on:
+      neo4j:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
       neo4j:
         condition: service_healthy
       cassandra:
@@ -72,15 +127,20 @@ services:
     networks:
       - projekat_net
     restart: on-failure
+    restart: on-failure
+    command: npm run dev
 
-  # Frontend (React + Vite)
+  # ===== Frontend (React + Vite) =====
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: projekat-frontend
     ports:
       - "3000:3000"
     environment:
       VITE_API_URL: http://localhost:3001/api
+      VITE_WS_URL: ws://localhost:3001
     depends_on:
       - backend
     volumes:
@@ -88,11 +148,28 @@ services:
       - /app/node_modules
     networks:
       - projekat_net
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    command: npm run dev
 
+# ===== Persistent Volumes =====
 volumes:
   neo4j_data:
   cassandra_data:
 
+    driver: local
+  neo4j_logs:
+    driver: local
+  cassandra_data:
+    driver: local
+  cassandra_logs:
+    driver: local
+
+# ===== Network Configuration =====
 networks:
   projekat_net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

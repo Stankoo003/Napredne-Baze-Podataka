@@ -61,28 +61,30 @@ function SocialGraph() {
       const connectionsData = response.data.connections || [];
       const edgesData = response.data.edges || [];
 
+      // Group connections by depth
       const groupedByDepth = {
         1: connectionsData.filter(c => c.depth === 1),
         2: connectionsData.filter(c => c.depth === 2),
         3: connectionsData.filter(c => c.depth === 3)
       };
 
+      // Position nodes in circular layout
       const positions = {};
       const centerX = 50;
       const centerY = 50;
-      
+
       Object.keys(groupedByDepth).forEach(depth => {
         const nodes = groupedByDepth[depth];
         if (nodes.length === 0) return;
-        
+
         const depthInt = parseInt(depth);
         const radius = 18 + (depthInt * 10);
-        
+
         nodes.forEach((node, index) => {
           const angle = (index / nodes.length) * 2 * Math.PI - Math.PI / 2;
           const x = centerX + radius * Math.cos(angle);
           const y = centerY + radius * Math.sin(angle);
-          
+
           positions[node.username] = {
             name: node.username,
             depth: node.depth,
@@ -103,6 +105,17 @@ function SocialGraph() {
       setError('Failed to load social network');
       setLoading(false);
     }
+  };
+
+  const createCurvedPath = (x1, y1, x2, y2, seed = 0) => {
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    const randomFactor = Math.sin(seed * 12.9898) * 0.3;
+    const direction = seed % 2 === 0 ? 1 : -1;
+    const offsetX = (y2 - y1) * (0.15 + randomFactor) * direction;
+    const offsetY = (x1 - x2) * (0.15 + randomFactor) * direction;
+
+    return `M ${x1} ${y1} Q ${midX + offsetX} ${midY + offsetY}, ${x2} ${y2}`;
   };
 
   const handleWheel = (e) => {
@@ -149,61 +162,37 @@ function SocialGraph() {
     setDragging(null);
   };
 
+  const getMedalEmoji = (depth) => {
+    if (depth === 1) return '🥇';
+    if (depth === 2) return '🥈';
+    if (depth === 3) return '🥉';
+    return '👤';
+  };
+
   if (loading && games.length === 0) {
     return (
       <div className="social-graph-page">
-        <div className="scanlines"></div>
-        <button className="back-btn" onClick={() => navigate('/')}>
-          Back to Home
-        </button>
         <div className="social-graph-container">
           <div className="graph-header">
-            <h1>
-              Social <span className="highlight">Network</span>
-            </h1>
-            <p className="graph-subtitle">Loading...</p>
+            <h1>Loading...</h1>
           </div>
         </div>
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="social-graph-page">
-        <div className="scanlines"></div>
-        <button className="back-btn" onClick={() => navigate('/')}>
-          Back to Home
-        </button>
-        <div className="social-graph-container">
-          <div className="graph-header">
-            <h1>
-              Social <span className="highlight">Network</span>
-            </h1>
-            <p className="graph-subtitle" style={{ color: '#ff4444' }}>{error}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const myEdges = edges.filter(e => e.from === currentUser?.username);
-  const peerEdges = edges.filter(e => e.from !== currentUser?.username);
 
   return (
     <div className="social-graph-page">
-      <div className="scanlines"></div>
-      
-      <button className="back-btn" onClick={() => navigate('/')}>
-        Back to Home
+      <button className="back-btn" onClick={() => navigate('/home')}>
+        ← Back
       </button>
 
       <div className="social-graph-container">
         <div className="graph-header">
           <h1>
-            Social <span className="highlight">Network</span>
+            Social <span className="highlight">Graph</span>
           </h1>
-          <p className="graph-subtitle">Gaming Connections (Max Depth 3)</p>
+          <p className="graph-subtitle">Network Visualization</p>
         </div>
 
         <div className="game-selector">
@@ -214,7 +203,7 @@ function SocialGraph() {
             value={selectedGame}
             onChange={(e) => setSelectedGame(e.target.value)}
           >
-            {games.map(game => (
+            {games.map((game) => (
               <option key={game.title} value={game.title}>
                 {game.title}
               </option>
@@ -222,149 +211,143 @@ function SocialGraph() {
           </select>
         </div>
 
-        <div className="zoom-controls">
-          <button onClick={() => setZoom(z => Math.min(2.5, z + 0.2))}>+</button>
-          <span>{Math.round(zoom * 100)}%</span>
-          <button onClick={() => setZoom(z => Math.max(0.5, z - 0.2))}>-</button>
-        </div>
-
         <div
-          className="graph-canvas"
           ref={canvasRef}
-          onWheel={handleWheel}
+          className={`graph-canvas ${dragging ? 'dragging' : ''}`}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+          style={{ transform: `scale(${zoom})` }}
         >
-          <div 
-            className="graph-viewport"
-            style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: 'center center'
-            }}
-          >
-           <svg className="connection-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-  {myEdges.map((edge, idx) => {
-    const targetPos = nodePositions[edge.to];
+          {connections.length === 0 ? (
+            <div className="empty-state">
+              <h2>No connections found for this game</h2>
+              <p>Follow other players who play {selectedGame}</p>
+            </div>
+          ) : (
+            <>
+              {/* SVG za dinamične linije koje prate nodove */}
+<svg 
+  className="connection-svg" 
+  viewBox="0 0 100 100"
+  preserveAspectRatio="none"
+  style={{ zIndex: 1 }}
+>
+  {/* Direct connections (YOU -> connection) */}
+  {connections.map((conn, idx) => {
+    const targetPos = nodePositions[conn.username];
     if (!targetPos) return null;
 
+    // Uvek koristi trenutne pozicije iz state-a
     const x1 = centerPosition.x;
     const y1 = centerPosition.y;
     const x2 = targetPos.x;
     const y2 = targetPos.y;
 
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const angle = Math.atan2(dy, dx);
-    
-    // Radijusi u % (mora odgovarati veličini node avatara)
-    const centerRadius = 2.8; // Centralni node (150px / ~5333px = ~2.8%)
-    const targetRadius = 1.7; // Obični node (90px / ~5333px = ~1.7%)
-
-    const startX = x1 + Math.cos(angle) * centerRadius;
-    const startY = y1 + Math.sin(angle) * centerRadius;
-    const endX = x2 - Math.cos(angle) * targetRadius;
-    const endY = y2 - Math.sin(angle) * targetRadius;
+    const pathData = createCurvedPath(x1, y1, x2, y2, idx);
 
     return (
-      <line
-        key={`my-edge-${idx}`}
-        x1={startX}
-        y1={startY}
-        x2={endX}
-        y2={endY}
+      <path
+        key={`direct-${conn.username}-${idx}`}
+        d={pathData}
         className="svg-line"
-        strokeWidth="0.5"
+        fill="none"
       />
     );
   })}
 
-  {peerEdges.map((edge, idx) => {
+  {/* Peer connections (connection -> connection) */}
+  {edges.map((edge, idx) => {
     const fromPos = nodePositions[edge.from];
     const toPos = nodePositions[edge.to];
+
     if (!fromPos || !toPos) return null;
 
+    // Uvek koristi trenutne pozicije iz state-a
     const x1 = fromPos.x;
     const y1 = fromPos.y;
     const x2 = toPos.x;
     const y2 = toPos.y;
 
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const angle = Math.atan2(dy, dx);
-    
-    const nodeRadius = 1.7;
-
-    const startX = x1 + Math.cos(angle) * nodeRadius;
-    const startY = y1 + Math.sin(angle) * nodeRadius;
-    const endX = x2 - Math.cos(angle) * nodeRadius;
-    const endY = y2 - Math.sin(angle) * nodeRadius;
+    const pathData = createCurvedPath(x1, y1, x2, y2, idx + 1000);
 
     return (
-      <line
-        key={`peer-edge-${idx}`}
-        x1={startX}
-        y1={startY}
-        x2={endX}
-        y2={endY}
+      <path
+        key={`peer-${edge.from}-${edge.to}-${idx}`}
+        d={pathData}
         className="svg-line-peer"
-        strokeWidth="0.3"
+        fill="none"
       />
     );
   })}
 </svg>
 
-            <div
-              className={`node node-center ${dragging === 'center' ? 'dragging' : ''}`}
-              style={{
-                left: `${centerPosition.x}%`,
-                top: `${centerPosition.y}%`
-              }}
-              onMouseDown={(e) => handleMouseDown(e, 'center')}
-            >
-              <div className="node-avatar">🎮</div>
-              <div className="node-name">{currentUser?.username || 'You'}</div>
-            </div>
 
-            {Object.entries(nodePositions).map(([username, pos]) => (
+              {/* Center node (YOU) */}
               <div
-                key={username}
-                className={`node ${dragging === username ? 'dragging' : ''}`}
+                className="node node-center"
                 style={{
-                  left: `${pos.x}%`,
-                  top: `${pos.y}%`
+                  left: `${centerPosition.x}%`,
+                  top: `${centerPosition.y}%`,
+                  transform: 'translate(-50%, -50%)'
                 }}
-                onMouseDown={(e) => handleMouseDown(e, username)}
-                onClick={() => navigate(`/profile/${username}`)}
+                onMouseDown={(e) => handleMouseDown(e, 'center')}
               >
-                <div className="node-avatar">👤</div>
-                <div className="node-name">{username}</div>
-                <div className="node-depth-badge">L{pos.depth}</div>
+                <div className="node-avatar">
+                  {currentUser?.avatar || '👤'}
+                </div>
+                <div className="node-name">
+                  {currentUser?.username || 'YOU'}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="connection-info">
-          <p>
-            You have <span className="count">{connections.length}</span>{' '}
-            {connections.length === 1 ? 'connection' : 'connections'} for{' '}
-            <span className="game-name">{selectedGame}</span>
-          </p>
-          {connections.length > 0 && (
-            <>
-              <p className="hint">
-                💡 Bright green lines = Your direct follows | Lighter lines = Peer connections
-              </p>
-              <p className="hint">
-                🔢 L1 = Direct follows | L2 = Friends of friends | L3 = Extended network
-              </p>
-              <p className="hint">
-                🖱️ Scroll to zoom | Drag nodes to reposition
-              </p>
+              {/* Connection nodes */}
+              {connections.map((conn) => {
+                const pos = nodePositions[conn.username];
+                if (!pos) return null;
+
+                return (
+                  <div
+                    key={conn.username}
+                    className="node"
+                    style={{
+                      left: `${pos.x}%`,
+                      top: `${pos.y}%`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                    onMouseDown={(e) => handleMouseDown(e, conn.username)}
+                  >
+                    <div className="node-avatar">
+                      {conn.avatar || getMedalEmoji(conn.depth)}
+                    </div>
+                    <div className="node-name">{conn.username}</div>
+                    <div className="node-depth-badge">L{conn.depth}</div>
+                  </div>
+                );
+              })}
             </>
           )}
         </div>
+
+        {connections.length > 0 && (
+          <div className="connection-info">
+            <p>
+              You have <span className="count">{connections.length}</span>{' '}
+              {connections.length === 1 ? 'connection' : 'connections'} for{' '}
+              <span className="game-name">{selectedGame}</span>
+            </p>
+            <p className="hint">
+              💡 Bright green lines = Direct follows | Lighter lines = Peer connections
+            </p>
+            <p className="hint">
+              🔢 L1 = Direct follows | L2 = Friends of friends | L3 = Extended network
+            </p>
+            <p className="hint">
+              🖱️ Scroll to zoom | Drag nodes to reposition
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

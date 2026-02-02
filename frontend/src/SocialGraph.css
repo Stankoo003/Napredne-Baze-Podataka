@@ -525,3 +525,242 @@
   transition: transform 0.1s ease-out;
 }
 
+/* ===== DEMO MODE CONTROLS ===== */
+.demo-controls {
+  position: fixed;
+  top: 120px;
+  right: 30px;
+  background: rgba(15, 15, 15, 0.95);
+  border: 2px solid rgba(0, 255, 0, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  min-width: 250px;
+}
+
+.demo-toggle {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(100, 100, 100, 0.5);
+  transition: 0.4s;
+  border-radius: 24px;
+  border: 2px solid rgba(0, 255, 0, 0.3);
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #888;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: rgba(0, 255, 0, 0.3);
+  border-color: #00ff00;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+  background-color: #00ff00;
+  box-shadow: 0 0 10px #00ff00;
+}
+
+.toggle-label {
+  color: #00ff00;
+  font-weight: 600;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.demo-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.demo-settings label {
+  color: #00ff00;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 5px;
+  background: rgba(100, 100, 100, 0.3);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #00ff00;
+  cursor: pointer;
+  box-shadow: 0 0 10px #00ff00;
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #00ff00;
+  cursor: pointer;
+  box-shadow: 0 0 10px #00ff00;
+  border: none;
+}
+
+.slider-value {
+  color: #00ff00;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-align: center;
+  display: block;
+  margin-top: 5px;
+}
+
+/* ===== MOCK NODES STYLING ===== */
+.node-mock {
+  opacity: 0.7;
+}
+
+.node-mock .node-avatar {
+  border-color: rgba(100, 100, 255, 0.6);
+  background: radial-gradient(circle, rgba(100, 100, 255, 0.3), transparent);
+  box-shadow: 
+    0 0 20px rgba(100, 100, 255, 0.5),
+    inset 0 0 15px rgba(100, 100, 255, 0.2);
+}
+
+.node-mock .node-name {
+  color: rgba(100, 150, 255, 0.9);
+}
+
+.mock-badge {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 0.6rem;
+  background: rgba(100, 100, 255, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(100, 100, 255, 0.5);
+  color: #6699ff;
+  font-weight: 700;
+}
+
+.mock-count {
+  color: #6699ff;
+  text-shadow: 0 0 10px rgba(100, 100, 255, 0.6);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .demo-controls {
+    top: auto;
+    bottom: 100px;
+    right: 15px;
+    left: 15px;
+    min-width: auto;
+  }
+
+  .demo-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
+/* Smooth transition za linije kada NISU tokom dragging-a */
+.svg-line,
+.svg-line-peer {
+  transition: d 0.15s ease-out;
+}
+
+/* Isključi transition tokom aktivnog dragging-a za instant response */
+.graph-canvas.dragging .svg-line,
+.graph-canvas.dragging .svg-line-peer {
+  transition: none;
+}
+/* FINALNE LINIJE - tanje i lepe */
+.connection-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.svg-line {
+  stroke: #00ff00;
+  stroke-width: 1.5; /* Tanja linija */
+  opacity: 0.8;
+  fill: none;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(0, 255, 0, 0.6));
+  /* Animacije vraćene */
+  stroke-dasharray: 150;
+  stroke-dashoffset: 150;
+  animation: drawLine 1s ease-out forwards, glowPulse 2.5s infinite ease-in-out 1s;
+}
+
+.svg-line-peer {
+  stroke: rgba(120, 220, 120, 0.85);
+  stroke-width: 1; /* Još tanja za peer */
+  opacity: 0.7;
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 150;
+  stroke-dashoffset: 150;
+  filter: drop-shadow(0 0 2px rgba(120, 220, 120, 0.6));
+  animation: drawLine 1s ease-out forwards 0.3s, glowPulsePeer 3s infinite ease-in-out 1.3s;
+}
+
+/* Smooth transition tokom dragging-a */
+.svg-line,
+.svg-line-peer {
+  transition: d 0.1s ease-out;
+}
+
+.graph-canvas.dragging .svg-line,
+.graph-canvas.dragging .svg-line-peer {
+  transition: none;
+}
