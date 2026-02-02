@@ -20,7 +20,7 @@ function Signup() {
       ...formData,
       [e.target.name]: e.target.value
     });
-    setError(''); // Resetuj grešku pri pisanju
+    setError('');
   };
 
   const handleSignup = async (e) => {
@@ -28,14 +28,12 @@ function Signup() {
     setError('');
     setLoading(true);
     
-    // Validacija lozinki
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match!');
       setLoading(false);
       return;
     }
 
-    // Email regex validacija (frontend)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError('Please enter a valid email address');
@@ -43,14 +41,12 @@ function Signup() {
       return;
     }
 
-    // Username validacija
     if (formData.username.length < 3) {
       setError('Username must be at least 3 characters');
       setLoading(false);
       return;
     }
 
-    // Password validacija
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
       setLoading(false);
@@ -58,7 +54,6 @@ function Signup() {
     }
 
     try {
-      // API poziv ka backend-u
       const response = await axios.post('http://localhost:3001/api/players', {
         username: formData.username,
         email: formData.email,
@@ -68,21 +63,18 @@ function Signup() {
 
       console.log('Signup success:', response.data);
 
-      // Sačuvaj korisnika u localStorage (za "login" stanje)
       localStorage.setItem('currentUser', JSON.stringify({
         username: response.data.player.username,
         email: response.data.player.email,
         age: response.data.player.age
       }));
 
-      // Uspešna registracija - idi na početnu stranicu
       alert(`Welcome to PlayTrack, ${formData.username}! 🎮`);
-      navigate('/'); // Vrati se na Home page
+      navigate('/'); 
 
     } catch (err) {
       console.error('Signup error:', err);
       
-      // Prikaži grešku sa backend-a
       if (err.response && err.response.data && err.response.data.error) {
         setError(err.response.data.error);
       } else {

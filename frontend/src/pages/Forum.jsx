@@ -43,25 +43,21 @@ function Forum() {
     try {
       let response;
       
-      // If user is logged in, use recommendation endpoint
       if (currentUser && selectedCategory === 'all') {
         response = await axios.get(`http://localhost:3001/api/topics/recommended/${currentUser.username}`, {
-          params: {
-            page: currentPage,
-            limit: 10
-          }
+          params: { page: currentPage, limit: 10 }
         });
       } else {
-        // Regular topics endpoint with category filter
         response = await axios.get('http://localhost:3001/api/topics', {
           params: {
-            category: selectedCategory,
+            category: selectedCategory === 'all' ? undefined : selectedCategory,
             page: currentPage,
             limit: 10
           }
         });
       }
       
+      console.log('Fetched topics:', response.data);
       setTopics(response.data.topics || []);
       setTotalPages(response.data.totalPages || 1);
     } catch (error) {
@@ -195,7 +191,7 @@ function Forum() {
         ) : !hasResults ? (
           <div className="empty-topics">
             <div className="empty-icon">📭</div>
-            <p>No results found</p>
+            <p>No topics found</p>
             {isSearching && <span>Try different keywords</span>}
           </div>
         ) : (

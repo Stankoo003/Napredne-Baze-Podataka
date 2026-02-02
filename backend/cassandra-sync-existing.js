@@ -16,65 +16,78 @@ async function connectCassandra() {
   cassandraClient = new cassandra.Client({
     contactPoints: [process.env.CASSANDRA_HOST || 'localhost'],
     localDataCenter: process.env.CASSANDRA_DATACENTER || 'datacenter1',
-    keyspace: 'game_stats'
+    keyspace: 'game_stats',
   });
+
   await cassandraClient.connect();
-  console.log('✅ Cassandra connected');
 }
 
 async function syncAllPlayers() {
   const session = neo4jDriver.session();
+
   try {
-    console.log('🔄 Fetching all players from Neo4j...');
-    
     const playersResult = await session.run(`
       MATCH (p:Player)
-      RETURN p.username as username
+      RETURN p.username AS username
     `);
-    
-    const players = playersResult.records.map(r => r.get('username'));
-    console.log(`📊 Found ${players.length} players in Neo4j`);
-    
+
+    const players = playersResult.records.map((r) => r.get('username'));
+
     for (const username of players) {
-      console.log(`\n👤 Processing player: ${username}`);
-      
-      const gamesResult = await session.run(`
+      const gamesResult = await session.run(
+        `
         MATCH (p:Player {username: $username})-[r:RATED]->(g:Game)
-        RETURN g.title as title, r.score as rating
-      `, { username });
-      
-      const games = gamesResult.records.map(record => ({
+        RETURN g.title AS title, r.score AS rating
+        `,
+        { username }
+      );
+
+      const games = gamesResult.records.map((record) => ({
         title: record.get('title'),
-        rating: record.get('rating')
+        rating: record.get('rating'),
       }));
-      
-      const ratedGames = games.filter(g => g.rating !== null && g.rating !== undefined);
-      const totalScore = ratedGames.reduce((sum, g) => sum + (g.rating * 1000), 0);
-      const avgRating = ratedGames.length > 0 
-        ? ratedGames.reduce((sum, g) => sum + g.rating, 0) / ratedGames.length 
-        : 0;
-      
+
+      const ratedGames = games.filter(
+        (g) => g.rating !== null && g.rating !== undefined
+      );
+
+      const totalScore = ratedGames.reduce(
+        (sum, g) => sum + g.rating * 1000,
+        0
+      );
+
+      const avgRating =
+        ratedGames.length > 0
+          ? ratedGames.reduce((sum, g) => sum + g.rating, 0) /
+            ratedGames.length
+          : 0;
+
       const globalQuery = `
         INSERT INTO global_leaderboard (username, total_score, games_played, avg_rating, updated_at)
         VALUES (?, ?, ?, ?, toTimestamp(now()))
       `;
-      await cassandraClient.execute(globalQuery, [username, totalScore, ratedGames.length, avgRating], { prepare: true });
-      console.log(`  ✅ Global leaderboard: ${username} (score: ${totalScore}, games: ${ratedGames.length})`);
-      
+
+      await cassandraClient.execute(
+        globalQuery,
+        [username, totalScore, ratedGames.length, avgRating],
+        { prepare: true }
+      );
+
       for (const game of ratedGames) {
         const gameQuery = `
           INSERT INTO game_leaderboard (game_title, username, score, updated_at)
           VALUES (?, ?, ?, toTimestamp(now()))
         `;
-        await cassandraClient.execute(gameQuery, [game.title, username, game.rating * 1000], { prepare: true });
-        console.log(`  ✅ Game leaderboard: ${game.title} - score ${game.rating * 1000}`);
+
+        await cassandraClient.execute(
+          gameQuery,
+          [game.title, username, game.rating * 1000],
+          { prepare: true }
+        );
       }
     }
-    
-    console.log('\n🎉 Sync completed successfully!');
-    
   } catch (error) {
-    console.error('❌ Sync error:', error);
+    throw error;
   } finally {
     await session.close();
   }
@@ -84,12 +97,9 @@ async function main() {
   try {
     await connectCassandra();
     await syncAllPlayers();
-  } catch (error) {
-    console.error('❌ Error:', error);
   } finally {
     await cassandraClient.shutdown();
     await neo4jDriver.close();
-    console.log('\n👋 Disconnected');
   }
 }
 

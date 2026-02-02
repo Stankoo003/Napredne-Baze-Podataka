@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Profile.css';
 
-
 function Profile() {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
 
   useEffect(() => {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -20,10 +18,8 @@ function Profile() {
       return;
     }
 
-
     fetchProfile(currentUser.username);
   }, [navigate]);
-
 
   const fetchProfile = async (username) => {
     try {
@@ -37,13 +33,11 @@ function Profile() {
     }
   };
 
-
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
     alert('Logged out successfully!');
     navigate('/');
   };
-
 
   if (loading) {
     return (
@@ -56,7 +50,6 @@ function Profile() {
       </div>
     );
   }
-
 
   if (error || !profileData) {
     return (
@@ -72,9 +65,7 @@ function Profile() {
     );
   }
 
-
   const { player, stats, favoriteGames, topRatedGames, friendsList } = profileData;
-
 
   return (
     <div className="profile-page">
@@ -83,7 +74,6 @@ function Profile() {
       <button className="back-btn" onClick={() => navigate('/')}>
         ← Back to Home
       </button>
-
 
       <div className="profile-container">
         <div className="profile-header">
@@ -105,7 +95,6 @@ function Profile() {
             </button>
           </div>
         </div>
-
 
         <div className="stats-grid">
           <div className="stat-card">
@@ -133,7 +122,6 @@ function Profile() {
           </div>
         </div>
 
-
         <div className="profile-content">
           
           <div className="section-box">
@@ -160,7 +148,6 @@ function Profile() {
             )}
           </div>
 
-
           <div className="section-box">
             <h2 className="section-title">
               <span className="title-icon">💚</span>
@@ -183,7 +170,6 @@ function Profile() {
             )}
           </div>
 
-
           <div className="section-box">
             <h2 className="section-title">
               <span className="title-icon">👥</span>
@@ -193,7 +179,22 @@ function Profile() {
               <div className="friends-list">
                 {friendsList.map((friend, index) => (
                   <div key={index} className="friend-item">
-                    <div className="friend-avatar">🎮</div>
+                    <div className="friend-avatar">
+                      {friend.profilePicture ? (
+                        <img 
+                          src={`http://localhost:3001${friend.profilePicture}`} 
+                          alt={`${friend.username}'s avatar`}
+                          className="friend-avatar-img"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <span className="friend-avatar-fallback" style={{ display: friend.profilePicture ? 'none' : 'flex' }}>
+                        🎮
+                      </span>
+                    </div>
                     <div className="friend-info">
                       <span className="friend-username">{friend.username}</span>
                       <span className="friend-email">{friend.email}</span>
@@ -206,12 +207,10 @@ function Profile() {
             )}
           </div>
 
-
         </div>
       </div>
     </div>
   );
 }
-
 
 export default Profile;

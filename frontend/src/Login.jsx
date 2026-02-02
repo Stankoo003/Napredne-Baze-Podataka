@@ -33,12 +33,10 @@ function Login() {
 
       console.log('Login success:', response.data);
 
-      // Sačuvaj korisnika u localStorage
       localStorage.setItem('currentUser', JSON.stringify(response.data.player));
 
       alert(`Welcome back, ${formData.username}! 🎮`);
       
-      // Redirect na homepage
       navigate('/');
       
     } catch (err) {

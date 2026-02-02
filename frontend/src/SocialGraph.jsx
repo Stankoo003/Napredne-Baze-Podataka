@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import TopBar from './components/TopBar';
 import './SocialGraph.css';
+
 
 function SocialGraph() {
   const navigate = useNavigate();
@@ -18,6 +20,7 @@ function SocialGraph() {
   const [nodePositions, setNodePositions] = useState({});
   const [centerPosition, setCenterPosition] = useState({ x: 50, y: 50 });
 
+
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('currentUser'));
     if (!user) {
@@ -28,6 +31,7 @@ function SocialGraph() {
     setCurrentUser(user);
     fetchGames();
   }, [navigate]);
+
 
   const fetchGames = async () => {
     try {
@@ -44,11 +48,13 @@ function SocialGraph() {
     }
   };
 
+
   useEffect(() => {
     if (selectedGame && currentUser) {
       fetchNetworkConnections(currentUser.username, selectedGame);
     }
   }, [selectedGame, currentUser]);
+
 
   const fetchNetworkConnections = async (username, gameTitle) => {
     try {
@@ -58,8 +64,10 @@ function SocialGraph() {
         gameTitle: gameTitle
       });
 
+
       const connectionsData = response.data.connections || [];
       const edgesData = response.data.edges || [];
+
 
       // Group connections by depth
       const groupedByDepth = {
@@ -68,22 +76,27 @@ function SocialGraph() {
         3: connectionsData.filter(c => c.depth === 3)
       };
 
+
       // Position nodes in circular layout
       const positions = {};
       const centerX = 50;
       const centerY = 50;
 
+
       Object.keys(groupedByDepth).forEach(depth => {
         const nodes = groupedByDepth[depth];
         if (nodes.length === 0) return;
 
+
         const depthInt = parseInt(depth);
         const radius = 18 + (depthInt * 10);
+
 
         nodes.forEach((node, index) => {
           const angle = (index / nodes.length) * 2 * Math.PI - Math.PI / 2;
           const x = centerX + radius * Math.cos(angle);
           const y = centerY + radius * Math.sin(angle);
+
 
           positions[node.username] = {
             name: node.username,
@@ -93,6 +106,7 @@ function SocialGraph() {
           };
         });
       });
+
 
       setNodePositions(positions);
       setConnections(connectionsData);
@@ -107,6 +121,7 @@ function SocialGraph() {
     }
   };
 
+
   const createCurvedPath = (x1, y1, x2, y2, seed = 0) => {
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
@@ -115,8 +130,10 @@ function SocialGraph() {
     const offsetX = (y2 - y1) * (0.15 + randomFactor) * direction;
     const offsetY = (x1 - x2) * (0.15 + randomFactor) * direction;
 
+
     return `M ${x1} ${y1} Q ${midX + offsetX} ${midY + offsetY}, ${x2} ${y2}`;
   };
+
 
   const handleWheel = (e) => {
     e.preventDefault();
@@ -125,24 +142,30 @@ function SocialGraph() {
     setZoom(prevZoom => Math.min(Math.max(0.5, prevZoom + delta), 2.5));
   };
 
+
   const handleMouseDown = (e, nodeId) => {
     e.preventDefault();
     e.stopPropagation();
     setDragging(nodeId);
   };
 
+
   const handleMouseMove = (e) => {
     if (dragging === null) return;
 
+
     const canvas = canvasRef.current;
     if (!canvas) return;
+
 
     const rect = canvas.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
+
     const clampedX = Math.max(10, Math.min(90, x));
     const clampedY = Math.max(10, Math.min(90, y));
+
 
     if (dragging === 'center') {
       setCenterPosition({ x: clampedX, y: clampedY });
@@ -158,9 +181,11 @@ function SocialGraph() {
     }
   };
 
+
   const handleMouseUp = () => {
     setDragging(null);
   };
+
 
   const getMedalEmoji = (depth) => {
     if (depth === 1) return '🥇';
@@ -169,9 +194,11 @@ function SocialGraph() {
     return '👤';
   };
 
+
   if (loading && games.length === 0) {
     return (
       <div className="social-graph-page">
+        <TopBar />
         <div className="social-graph-container">
           <div className="graph-header">
             <h1>Loading...</h1>
@@ -181,11 +208,15 @@ function SocialGraph() {
     );
   }
 
+
   return (
     <div className="social-graph-page">
+      <TopBar />
+      
       <button className="back-btn" onClick={() => navigate('/home')}>
-        ← Back
+        ← Back to Home
       </button>
+
 
       <div className="social-graph-container">
         <div className="graph-header">
@@ -194,6 +225,7 @@ function SocialGraph() {
           </h1>
           <p className="graph-subtitle">Network Visualization</p>
         </div>
+
 
         <div className="game-selector">
           <label htmlFor="game-select">Select Game:</label>
@@ -211,6 +243,7 @@ function SocialGraph() {
           </select>
         </div>
 
+
         <div
           ref={canvasRef}
           className={`graph-canvas ${dragging ? 'dragging' : ''}`}
@@ -227,64 +260,57 @@ function SocialGraph() {
             </div>
           ) : (
             <>
-              {/* SVG za dinamične linije koje prate nodove */}
-<svg 
-  className="connection-svg" 
-  viewBox="0 0 100 100"
-  preserveAspectRatio="none"
-  style={{ zIndex: 1 }}
->
-  {/* Direct connections (YOU -> connection) */}
-  {connections.map((conn, idx) => {
-    const targetPos = nodePositions[conn.username];
-    if (!targetPos) return null;
+              <svg 
+                className="connection-svg" 
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                style={{ zIndex: 1 }}
+              >
+                {connections.map((conn, idx) => {
+                  const targetPos = nodePositions[conn.username];
+                  if (!targetPos) return null;
 
-    // Uvek koristi trenutne pozicije iz state-a
-    const x1 = centerPosition.x;
-    const y1 = centerPosition.y;
-    const x2 = targetPos.x;
-    const y2 = targetPos.y;
+                  const x1 = centerPosition.x;
+                  const y1 = centerPosition.y;
+                  const x2 = targetPos.x;
+                  const y2 = targetPos.y;
 
-    const pathData = createCurvedPath(x1, y1, x2, y2, idx);
+                  const pathData = createCurvedPath(x1, y1, x2, y2, idx);
 
-    return (
-      <path
-        key={`direct-${conn.username}-${idx}`}
-        d={pathData}
-        className="svg-line"
-        fill="none"
-      />
-    );
-  })}
+                  return (
+                    <path
+                      key={`direct-${conn.username}-${idx}`}
+                      d={pathData}
+                      className="svg-line"
+                      fill="none"
+                    />
+                  );
+                })}
 
-  {/* Peer connections (connection -> connection) */}
-  {edges.map((edge, idx) => {
-    const fromPos = nodePositions[edge.from];
-    const toPos = nodePositions[edge.to];
+                {edges.map((edge, idx) => {
+                  const fromPos = nodePositions[edge.from];
+                  const toPos = nodePositions[edge.to];
 
-    if (!fromPos || !toPos) return null;
+                  if (!fromPos || !toPos) return null;
 
-    // Uvek koristi trenutne pozicije iz state-a
-    const x1 = fromPos.x;
-    const y1 = fromPos.y;
-    const x2 = toPos.x;
-    const y2 = toPos.y;
+                  const x1 = fromPos.x;
+                  const y1 = fromPos.y;
+                  const x2 = toPos.x;
+                  const y2 = toPos.y;
 
-    const pathData = createCurvedPath(x1, y1, x2, y2, idx + 1000);
+                  const pathData = createCurvedPath(x1, y1, x2, y2, idx + 1000);
 
-    return (
-      <path
-        key={`peer-${edge.from}-${edge.to}-${idx}`}
-        d={pathData}
-        className="svg-line-peer"
-        fill="none"
-      />
-    );
-  })}
-</svg>
+                  return (
+                    <path
+                      key={`peer-${edge.from}-${edge.to}-${idx}`}
+                      d={pathData}
+                      className="svg-line-peer"
+                      fill="none"
+                    />
+                  );
+                })}
+              </svg>
 
-
-              {/* Center node (YOU) */}
               <div
                 className="node node-center"
                 style={{
@@ -295,14 +321,21 @@ function SocialGraph() {
                 onMouseDown={(e) => handleMouseDown(e, 'center')}
               >
                 <div className="node-avatar">
-                  {currentUser?.avatar || '👤'}
+                  {currentUser?.avatar ? (
+                    <img 
+                      src={`http://localhost:3001${currentUser.avatar}`}
+                      alt={currentUser.username}
+                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    '👤'
+                  )}
                 </div>
                 <div className="node-name">
                   {currentUser?.username || 'YOU'}
                 </div>
               </div>
 
-              {/* Connection nodes */}
               {connections.map((conn) => {
                 const pos = nodePositions[conn.username];
                 if (!pos) return null;
@@ -319,7 +352,15 @@ function SocialGraph() {
                     onMouseDown={(e) => handleMouseDown(e, conn.username)}
                   >
                     <div className="node-avatar">
-                      {conn.avatar || getMedalEmoji(conn.depth)}
+                      {conn.avatar ? (
+                        <img 
+                          src={`http://localhost:3001${conn.avatar}`}
+                          alt={conn.username}
+                          style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        getMedalEmoji(conn.depth)
+                      )}
                     </div>
                     <div className="node-name">{conn.username}</div>
                     <div className="node-depth-badge">L{conn.depth}</div>
@@ -329,6 +370,7 @@ function SocialGraph() {
             </>
           )}
         </div>
+
 
         {connections.length > 0 && (
           <div className="connection-info">
@@ -352,5 +394,6 @@ function SocialGraph() {
     </div>
   );
 }
+
 
 export default SocialGraph;

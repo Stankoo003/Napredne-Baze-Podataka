@@ -43,7 +43,6 @@ const upload = multer({
   }
 });
 
-
 function formatNeo4jDatetime(obj) {
   if (!obj) return obj;
   if (Array.isArray(obj)) {
@@ -73,10 +72,10 @@ const driver = neo4j.driver(
 
 driver.getServerInfo()
   .then(info => {
-    console.log('✅ Neo4j povezan:', info.address);
+    console.log('Neo4j povezan:', info.address);
   })
   .catch(err => {
-    console.error('❌ Neo4j greška:', err);
+    console.error('Neo4j greška:', err);
   });
 
 const cassandraInit = require('./cassandra-init');
@@ -89,13 +88,13 @@ let cassandraClient = null;
     try {
       cassandraClient = await cassandraInit.initCassandra();
       cassandraReady = true;
-      console.log('✅ Cassandra spremna za upotrebu');
+      console.log('Cassandra spremna za upotrebu');
       break;
     } catch (error) {
       retries--;
-      console.log(`⏳ Čekam Cassandra... (preostalo pokušaja: ${retries})`);
+      console.log(`Čekam Cassandra... (preostalo pokušaja: ${retries})`);
       if (retries === 0) {
-        console.error('❌ Cassandra nije dostupna nakon 10 pokušaja:', error.message);
+        console.error('Cassandra nije dostupna nakon 10 pokušaja:', error.message);
       }
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
@@ -104,7 +103,7 @@ let cassandraClient = null;
 
 async function addActivityPoints(username, activityType, points) {
   if (!cassandraReady || !cassandraClient) {
-    console.log('⚠️ Cassandra nije dostupna za activity tracking');
+    console.log('Cassandra nije dostupna za activity tracking');
     return;
   }
   
@@ -134,15 +133,15 @@ async function addActivityPoints(username, activityType, points) {
     `;
     await cassandraClient.execute(updateQuery, [newScore, username], { prepare: true });
     
-    console.log(`✅ Activity tracked: ${username} earned ${points} points for ${activityType} (total: ${newScore})`);
+    console.log(`Activity tracked: ${username} earned ${points} points for ${activityType} (total: ${newScore})`);
   } catch (error) {
-    console.error(`❌ Error tracking activity:`, error.message);
+    console.error(`Error tracking activity:`, error.message);
   }
 }
 
 async function syncPlayerToCassandra(username) {
   if (!cassandraReady || !cassandraClient) {
-    console.log('⚠️ Cassandra nije dostupna za sync');
+    console.log('Cassandra nije dostupna za sync');
     return;
   }
   
@@ -180,9 +179,9 @@ async function syncPlayerToCassandra(username) {
     `;
     await cassandraClient.execute(globalQuery, [username, totalScore, ratedGames.length, avgRating], { prepare: true });
     
-    console.log(`✅ Cassandra: Global leaderboard updated for ${username} (games: ${ratedGames.length}, avg: ${avgRating})`);
+    console.log(`Cassandra: Global leaderboard updated for ${username} (games: ${ratedGames.length}, avg: ${avgRating})`);
   } catch (error) {
-    console.error(`❌ Cassandra sync error for ${username}:`, error.message);
+    console.error(`Cassandra sync error for ${username}:`, error.message);
   } finally {
     await session.close();
   }
@@ -190,7 +189,7 @@ async function syncPlayerToCassandra(username) {
 
 async function syncGameRatingToCassandra(username, gameTitle, score) {
   if (!cassandraReady || !cassandraClient) {
-    console.log('⚠️ Cassandra nije dostupna za sync');
+    console.log('Cassandra nije dostupna za sync');
     return;
   }
   
@@ -201,9 +200,9 @@ async function syncGameRatingToCassandra(username, gameTitle, score) {
     `;
     await cassandraClient.execute(gameQuery, [gameTitle, username, score], { prepare: true });
     
-    console.log(`✅ Cassandra: Game leaderboard updated for ${username} - ${gameTitle}`);
+    console.log(`Cassandra: Game leaderboard updated for ${username} - ${gameTitle}`);
   } catch (error) {
-    console.error(`❌ Cassandra game sync error:`, error.message);
+    console.error(`Cassandra game sync error:`, error.message);
   }
 }
 
@@ -341,18 +340,23 @@ app.get('/api/players/:username/profile', async (req, res) => {
   const session = driver.session();
   try {
     const { username } = req.params;
+
     const playerResult = await session.run(
       `MATCH (p:Player {username: $username}) RETURN p`,
       { username }
     );
+
     if (playerResult.records.length === 0) {
       return res.status(404).json({ error: 'Player not found' });
     }
+
     const player = playerResult.records[0].get('p').properties;
     delete player.password;
+
     if (player.createdAt) {
       player.createdAt = player.createdAt.toString();
     }
+
     const allGamesResult = await session.run(
       `MATCH (p:Player {username: $username})-[r:RATED]->(g:Game)
        RETURN g.title as title, g.genre as genre, r.score as rating,
@@ -360,32 +364,53 @@ app.get('/api/players/:username/profile', async (req, res) => {
        ORDER BY date DESC`,
       { username }
     );
+
     const allGames = allGamesResult.records.map(record => ({
       title: record.get('title'),
       genre: record.get('genre'),
       rating: record.get('rating')
     }));
-    const topRatedGames = allGames.filter(g => g.rating !== null && g.rating !== undefined).slice(0, 10);
+
+    const topRatedGames = allGames
+      .filter(g => g.rating !== null && g.rating !== undefined)
+      .slice(0, 10);
+
     const followsResult = await session.run(
       `MATCH (p:Player {username: $username})-[:FOLLOWS]->(other:Player)
        RETURN COUNT(other) as count`,
       { username }
     );
     const followsCount = followsResult.records[0]?.get('count').toNumber() || 0;
+
+    const followersResult = await session.run(
+      `MATCH (p:Player {username: $username})<-[:FOLLOWS]-(other:Player)
+       RETURN COUNT(other) as count`,
+      { username }
+    );
+    const followersCount = followersResult.records[0]?.get('count').toNumber() || 0;
+
     const friendsResult = await session.run(
       `MATCH (p:Player {username: $username})-[:FOLLOWS]->(friend:Player)
-       RETURN friend.username as username, friend.email as email
+       RETURN friend.username as username, 
+              friend.email as email,
+              friend.avatar as avatar
        LIMIT 20`,
       { username }
     );
+
     const friendsList = friendsResult.records.map(record => ({
       username: record.get('username'),
-      email: record.get('email')
+      email: record.get('email'),
+      profilePicture: record.get('avatar')
     }));
+
     const ratedGamesCount = allGames.filter(g => g.rating !== null && g.rating !== undefined).length;
     const avgRating = ratedGamesCount > 0
-      ? allGames.filter(g => g.rating !== null && g.rating !== undefined).reduce((sum, g) => sum + g.rating, 0) / ratedGamesCount
+      ? allGames
+          .filter(g => g.rating !== null && g.rating !== undefined)
+          .reduce((sum, g) => sum + g.rating, 0) / ratedGamesCount
       : 0;
+
     res.json({
       player,
       allGames,
@@ -394,9 +419,11 @@ app.get('/api/players/:username/profile', async (req, res) => {
       stats: {
         ratedGamesCount,
         followsCount,
+        followersCount,
         averageRating: avgRating.toFixed(2)
       }
     });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   } finally {
@@ -415,7 +442,6 @@ app.post('/api/players/:username/upload-avatar', upload.single('avatar'), async 
     
     const avatarUrl = `/uploads/${req.file.filename}`;
     
-    // Update player's avatar in Neo4j
     await session.run(
       `MATCH (p:Player {username: $username})
        SET p.avatar = $avatarUrl
@@ -435,7 +461,6 @@ app.post('/api/players/:username/upload-avatar', upload.single('avatar'), async 
   }
 });
 
-// Get player avatar
 app.get('/api/players/:username/avatar', async (req, res) => {
   const session = driver.session();
   try {
@@ -459,7 +484,6 @@ app.get('/api/players/:username/avatar', async (req, res) => {
     await session.close();
   }
 });
-
 
 app.post('/api/players/:username/change-password', async (req, res) => {
   const session = driver.session();
@@ -816,7 +840,6 @@ app.get('/api/users/search', async (req, res) => {
   }
 });
 
-
 app.post('/api/topics', async (req, res) => {
   const session = driver.session();
   try {
@@ -854,33 +877,38 @@ app.post('/api/topics', async (req, res) => {
   }
 });
 
-
 app.get('/api/topics', async (req, res) => {
   const session = driver.session();
   try {
     const { category, page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    let query = `MATCH (t:Topic)`;
-    let params = {};
+    let query;
+    let params;
     
     if (category && category !== 'all') {
-      query += ` WHERE t.category = $category`;
-      params.category = category;
+      query = `
+        MATCH (t:Topic {category: $category})
+        OPTIONAL MATCH (c:Comment)-[:BELONGS_TO]->(t)
+        WITH t, COUNT(c) as commentCount
+        RETURN t, commentCount
+        ORDER BY t.createdAt DESC
+        SKIP ${skip} LIMIT ${parseInt(limit)}
+      `;
+      params = { category };
+    } else {
+      query = `
+        MATCH (t:Topic)
+        OPTIONAL MATCH (c:Comment)-[:BELONGS_TO]->(t)
+        WITH t, COUNT(c) as commentCount
+        RETURN t, commentCount
+        ORDER BY t.createdAt DESC
+        SKIP ${skip} LIMIT ${parseInt(limit)}
+      `;
+      params = {};
     }
     
-    query += ` OPTIONAL MATCH (c:Comment)-[:BELONGS_TO]->(t)
-               WITH t, COUNT(c) as commentCount
-               RETURN t, commentCount
-               ORDER BY t.createdAt DESC
-               SKIP ${skip} LIMIT ${parseInt(limit)}`;
-    
-    console.log('📋 Executing query:', query);
-    console.log('📋 With params:', params);
-    
     const result = await session.run(query, params);
-    
-    console.log('✅ Found topics:', result.records.length);
     
     const topics = result.records.map(record => {
       const topic = formatNeo4jDatetime(record.get('t').properties);
@@ -888,19 +916,14 @@ app.get('/api/topics', async (req, res) => {
       return topic;
     });
     
-    // Count query
-    let countQuery = `MATCH (t:Topic)`;
-    let countParams = {};
-    if (category && category !== 'all') {
-      countQuery += ` WHERE t.category = $category`;
-      countParams.category = category;
-    }
-    countQuery += ` RETURN count(t) as total`;
+    const countQuery = category && category !== 'all'
+      ? `MATCH (t:Topic {category: $category}) RETURN count(t) as total`
+      : `MATCH (t:Topic) RETURN count(t) as total`;
     
-    const countResult = await session.run(countQuery, countParams);
+    const countResult = await session.run(countQuery, category && category !== 'all' ? { category } : {});
     const total = countResult.records[0].get('total').toNumber();
     
-    console.log('📊 Total topics:', total);
+    console.log(`Fetched ${topics.length} topics (total: ${total})`);
     
     res.json({
       topics,
@@ -909,13 +932,12 @@ app.get('/api/topics', async (req, res) => {
       totalPages: Math.ceil(total / parseInt(limit))
     });
   } catch (error) {
-    console.error('❌ Error fetching topics:', error);
+    console.error('Error fetching topics:', error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
-
 
 app.get('/api/topics/search', async (req, res) => {
   const session = driver.session();
@@ -1079,7 +1101,7 @@ app.post('/api/social-graph/depth', async (req, res) => {
       `MATCH (me:Player {username: $username})-[:RATED]->(game:Game {title: $gameTitle})
        MATCH (me)-[:FOLLOWS]->(connected:Player)-[:RATED]->(game)
        WHERE connected.username <> $username
-       RETURN DISTINCT connected.username as username, 1 as depth`,
+       RETURN DISTINCT connected.username as username, connected.avatar as avatar, 1 as depth`,
       { username, gameTitle }
     );
     const depth2Result = await session.run(
@@ -1087,7 +1109,7 @@ app.post('/api/social-graph/depth', async (req, res) => {
        MATCH (me)-[:FOLLOWS]->()-[:FOLLOWS]->(connected:Player)-[:RATED]->(game)
        WHERE connected.username <> $username
        AND NOT (me)-[:FOLLOWS]->(connected)
-       RETURN DISTINCT connected.username as username, 2 as depth`,
+       RETURN DISTINCT connected.username as username, connected.avatar as avatar, 2 as depth`,
       { username, gameTitle }
     );
     const depth3Result = await session.run(
@@ -1096,13 +1118,13 @@ app.post('/api/social-graph/depth', async (req, res) => {
        WHERE connected.username <> $username
        AND NOT (me)-[:FOLLOWS]->(connected)
        AND NOT (me)-[:FOLLOWS]->()-[:FOLLOWS]->(connected)
-       RETURN DISTINCT connected.username as username, 3 as depth`,
+       RETURN DISTINCT connected.username as username, connected.avatar as avatar, 3 as depth`,
       { username, gameTitle }
     );
     const connections = [
-      ...depth1Result.records.map(r => ({ username: r.get('username'), depth: 1 })),
-      ...depth2Result.records.map(r => ({ username: r.get('username'), depth: 2 })),
-      ...depth3Result.records.map(r => ({ username: r.get('username'), depth: 3 }))
+      ...depth1Result.records.map(r => ({ username: r.get('username'), avatar: r.get('avatar'), depth: 1 })),
+      ...depth2Result.records.map(r => ({ username: r.get('username'), avatar: r.get('avatar'), depth: 2 })),
+      ...depth3Result.records.map(r => ({ username: r.get('username'), avatar: r.get('avatar'), depth: 3 }))
     ];
     const allUsernames = [username, ...connections.map(c => c.username)];
     const edgesResult = await session.run(
@@ -1211,7 +1233,6 @@ app.get('/api/leaderboard/global', async (req, res) => {
     const query = 'SELECT * FROM global_leaderboard LIMIT 100';
     const result = await cassandraClient.execute(query);
     
-    // Fetch avatars from Neo4j
     const usernames = result.rows.map(row => row.username);
     const avatarResult = await session.run(
       `MATCH (p:Player)
@@ -1242,30 +1263,6 @@ app.get('/api/leaderboard/global', async (req, res) => {
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
-  }
-});
-
-
-app.get('/api/leaderboard/global', async (req, res) => {
-  if (!cassandraReady) {
-    return res.status(503).json({ error: 'Cassandra nije dostupna' });
-  }
-  try {
-    const query = 'SELECT * FROM global_leaderboard LIMIT 100';
-    const result = await cassandraClient.execute(query);
-    const leaderboard = result.rows
-      .sort((a, b) => Number(b.total_score) - Number(a.total_score))
-      .map((row, index) => ({
-        rank: index + 1,
-        username: row.username,
-        totalScore: Number(row.total_score),
-        gamesPlayed: row.games_played,
-        avgRating: Number(row.avg_rating),
-        updatedAt: row.updated_at
-      }));
-    res.json(leaderboard);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
 });
 
@@ -1368,7 +1365,6 @@ app.get('/api/topics/recommended/:username', async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Get user's games
     const userGamesResult = await session.run(
       `MATCH (p:Player {username: $username})-[:RATED]->(g:Game)
        RETURN g.title as gameTitle`,
@@ -1377,33 +1373,6 @@ app.get('/api/topics/recommended/:username', async (req, res) => {
     
     const userGames = userGamesResult.records.map(r => r.get('gameTitle'));
     
-    // Create keyword variations
-    const gameKeywords = [];
-    userGames.forEach(game => {
-      const lowerGame = game.toLowerCase();
-      gameKeywords.push(lowerGame);
-      gameKeywords.push(lowerGame.replace(/\s+/g, '')); // Remove spaces
-      gameKeywords.push(lowerGame.replace(/\s+/g, '-')); // Replace spaces with dash
-      
-      // Special aliases
-      if (lowerGame.includes('counter strike')) {
-        gameKeywords.push('cs2', 'counter-strike', 'counterstrike');
-      }
-      if (lowerGame.includes('league of legends')) {
-        gameKeywords.push('lol', 'league');
-      }
-      if (lowerGame.includes('dota')) {
-        gameKeywords.push('dota2', 'dota 2');
-      }
-      if (lowerGame.includes('call of duty')) {
-        gameKeywords.push('cod', 'warzone');
-      }
-      if (lowerGame.includes('resident evil')) {
-        gameKeywords.push('re4', 're');
-      }
-    });
-    
-    // Get users that current user follows
     const followingResult = await session.run(
       `MATCH (p:Player {username: $username})-[:FOLLOWS]->(followed:Player)
        RETURN followed.username as followedUsername`,
@@ -1412,67 +1381,129 @@ app.get('/api/topics/recommended/:username', async (req, res) => {
     
     const followedUsers = followingResult.records.map(r => r.get('followedUsername'));
     
-    console.log('🎮 Game keywords:', gameKeywords);
-    console.log('👥 Following:', followedUsers);
+    console.log(`User: ${username}`);
+    console.log(`Games: ${userGames.join(', ')}`);
+    console.log(`Following: ${followedUsers.join(', ')}`);
     
-    // Build recommendation query
-    const result = await session.run(
+    const gameKeywords = [];
+    userGames.forEach(game => {
+      const lowerGame = game.toLowerCase();
+      gameKeywords.push(lowerGame);
+      const words = lowerGame.split(' ');
+      words.forEach(word => {
+        if (word.length > 3) gameKeywords.push(word);
+      });
+      gameKeywords.push(lowerGame.replace(/\s+/g, ''));
+      
+      if (lowerGame.includes('counter strike')) {
+        gameKeywords.push('cs2', 'cs', 'csgo', 'counter-strike');
+      }
+      if (lowerGame.includes('resident evil')) {
+        gameKeywords.push('re4', 'resident evil 4');
+      }
+      if (lowerGame.includes('elden ring')) {
+        gameKeywords.push('elden', 'ring', 'eldenring');
+      }
+      if (lowerGame.includes('valorant')) {
+        gameKeywords.push('val', 'valorant');
+      }
+      if (lowerGame.includes('league')) {
+        gameKeywords.push('lol', 'league');
+      }
+      if (lowerGame.includes('witcher')) {
+        gameKeywords.push('witcher', 'witcher3');
+      }
+    });
+    
+    console.log(`Keywords: ${gameKeywords.slice(0, 15).join(', ')}...`);
+    
+    if (userGames.length === 0 && followedUsers.length === 0) {
+      console.log('No games or connections, returning regular topics');
+      const regularResult = await session.run(
+        `MATCH (t:Topic)
+         OPTIONAL MATCH (c:Comment)-[:BELONGS_TO]->(t)
+         WITH t, COUNT(c) as commentCount
+         RETURN t, commentCount
+         ORDER BY t.createdAt DESC
+         SKIP ${skip} LIMIT ${parseInt(limit)}`
+      );
+      
+      const topics = regularResult.records.map(record => {
+        const topic = formatNeo4jDatetime(record.get('t').properties);
+        topic.commentCount = record.get('commentCount').toNumber();
+        topic.isRecommended = false;
+        return topic;
+      });
+      
+      const countResult = await session.run(`MATCH (t:Topic) RETURN count(t) as total`);
+      const total = countResult.records[0].get('total').toNumber();
+      
+      return res.json({
+        topics,
+        total,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit))
+      });
+    }
+    
+    const allTopicsResult = await session.run(
       `MATCH (t:Topic)
        OPTIONAL MATCH (c:Comment)-[:BELONGS_TO]->(t)
        WITH t, COUNT(c) as commentCount,
             toLower(t.title + ' ' + t.content) as searchText
-       RETURN t, commentCount,
-              CASE 
-                WHEN ANY(keyword IN $gameKeywords WHERE searchText CONTAINS keyword) 
-                THEN 2
-                ELSE 0 
-              END as gameMatch,
-              CASE 
-                WHEN t.authorUsername IN $followedUsers 
-                THEN 1 
-                ELSE 0 
-              END as followingMatch
-       ORDER BY (gameMatch + followingMatch) DESC, t.createdAt DESC
-       SKIP ${skip} LIMIT ${parseInt(limit)}`,
-      { 
-        gameKeywords, 
-        followedUsers
-      }
+       WITH t, commentCount, searchText,
+            CASE 
+              WHEN size($gameKeywords) > 0 AND ANY(keyword IN $gameKeywords WHERE searchText CONTAINS keyword) 
+              THEN 2
+              ELSE 0 
+            END as gameMatch,
+            CASE 
+              WHEN size($followedUsers) > 0 AND t.authorUsername IN $followedUsers
+              THEN 1 
+              ELSE 0 
+            END as followingMatch
+       WITH t, commentCount, (gameMatch + followingMatch) as totalScore
+       RETURN t, commentCount, totalScore
+       ORDER BY totalScore DESC, t.createdAt DESC`,
+      { gameKeywords, followedUsers }
     );
     
-    const topics = result.records.map(record => {
+    const allTopics = allTopicsResult.records.map(record => {
       const topic = formatNeo4jDatetime(record.get('t').properties);
       topic.commentCount = record.get('commentCount').toNumber();
-      const totalScore = record.get('gameMatch') + record.get('followingMatch');
-      topic.isRecommended = totalScore > 0;
+      const score = record.get('totalScore');
       
-      console.log(`📝 Topic: "${topic.title.substring(0, 40)}..." | Score: ${totalScore}`);
+      if (topic.authorUsername === username) {
+        topic.isRecommended = false;
+      } else {
+        topic.isRecommended = score > 0;
+      }
       
       return topic;
     });
     
-    // Count total
+    console.log(`Total topics: ${allTopics.length}, Recommended: ${allTopics.filter(t => t.isRecommended).length}`);
+    
+    const paginatedTopics = allTopics.slice(skip, skip + parseInt(limit));
+    
     const countResult = await session.run(`MATCH (t:Topic) RETURN count(t) as total`);
     const total = countResult.records[0].get('total').toNumber();
     
-    console.log(`✅ Total recommended: ${topics.filter(t => t.isRecommended).length}/${topics.length}`);
-    
     res.json({
-      topics,
+      topics: paginatedTopics,
       total,
       currentPage: parseInt(page),
       totalPages: Math.ceil(total / parseInt(limit))
     });
   } catch (error) {
-    console.error('❌ Error fetching recommended topics:', error);
+    console.error('Error:', error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
 
-
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 Server pokrenut na http://localhost:${PORT}`);
+  console.log(`Server pokrenut na http://localhost:${PORT}`);
 });
