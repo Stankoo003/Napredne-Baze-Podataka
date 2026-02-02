@@ -41,7 +41,7 @@ function Profile() {
       setProfileUser({
         username: data.player.username,
         email: data.player.email,
-        avatar: '🎮',
+        avatar: data.player.avatar || null,
         bio: data.player.bio || '',
         joinedDate: new Date(data.player.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
         stats: {
@@ -150,8 +150,16 @@ function Profile() {
           
           <div className="profile-info-section">
             <div className="profile-avatar-wrapper">
-              <div className="profile-avatar">
-                {profileUser.avatar}
+            <div className="profile-avatar">
+                {profileUser.avatar ? (
+                  <img 
+                    src={`http://localhost:3001${profileUser.avatar}`} 
+                    alt={profileUser.username}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                  />
+                ) : (
+                  '🎮'
+                )}
                 <div className="online-indicator"></div>
               </div>
             </div>

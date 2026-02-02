@@ -85,7 +85,81 @@ function App() {
 
   return (
     <div className="app">
-      <div className="scanlines"></div>
+    <div className="beast-background">
+      {/* Top left claw marks cluster */}
+      <div className="claw-cluster cluster-1">
+        <div className="claw-mark claw-1-1"></div>
+        <div className="claw-mark claw-1-2"></div>
+        <div className="claw-mark claw-1-3"></div>
+      </div>
+
+      {/* Top right claw marks cluster */}
+      <div className="claw-cluster cluster-2">
+        <div className="claw-mark claw-2-1"></div>
+        <div className="claw-mark claw-2-2"></div>
+        <div className="claw-mark claw-2-3"></div>
+      </div>
+
+      {/* Middle left claw marks cluster */}
+      <div className="claw-cluster cluster-3">
+        <div className="claw-mark claw-3-1"></div>
+        <div className="claw-mark claw-3-2"></div>
+        <div className="claw-mark claw-3-3"></div>
+      </div>
+
+      {/* Bottom right claw marks cluster */}
+      <div className="claw-cluster cluster-4">
+        <div className="claw-mark claw-4-1"></div>
+        <div className="claw-mark claw-4-2"></div>
+        <div className="claw-mark claw-4-3"></div>
+      </div>
+
+      {/* Bottom left claw marks cluster */}
+      <div className="claw-cluster cluster-5">
+        <div className="claw-mark claw-5-1"></div>
+        <div className="claw-mark claw-5-2"></div>
+        <div className="claw-mark claw-5-3"></div>
+      </div>
+
+      {/* Glow orbs */}
+      <div className="glow-orb glow-1"></div>
+      <div className="glow-orb glow-2"></div>
+      <div className="glow-orb glow-3"></div>
+      <div className="glow-orb glow-4"></div>
+
+      {/* Diagonal light beams */}
+      <div className="light-beam beam-1"></div>
+      <div className="light-beam beam-2"></div>
+      <div className="light-beam beam-3"></div>
+
+      {/* Floating particles */}
+      <div className="particle-container">
+        {[...Array(15)].map((_, i) => (
+          <div key={i} className={`floating-particle p-${i}`}></div>
+        ))}
+      </div>
+
+      {/* Appearing/Disappearing Lines */}
+      <div className="dynamic-lines">
+        <div className="line line-1"></div>
+        <div className="line line-2"></div>
+        <div className="line line-3"></div>
+        <div className="line line-4"></div>
+        <div className="line line-5"></div>
+        <div className="line line-6"></div>
+        <div className="line line-7"></div>
+        <div className="line line-8"></div>
+      </div>
+
+      {/* Appearing/Disappearing Particles */}
+      <div className="dynamic-particles">
+        {[...Array(25)].map((_, i) => (
+          <div key={i} className={`dynamic-particle dp-${i}`}></div>
+        ))}
+      </div>
+    </div>
+
+    <div className="scanlines"></div>
 
       <svg className="wave-decoration" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" preserveAspectRatio="none">
       <defs>
@@ -262,6 +336,11 @@ function App() {
             <div className="feature-icon">💬</div>
             <h3>Gaming Forum</h3>
             <p>Discuss games, news & join the community</p>
+          </div>
+          <div className="feature-card" onClick={() => navigate('/leaderboard')}>
+            <div className="feature-icon">🏆</div>
+            <h3>Leaderboard</h3>
+            <p>Compete globally & track progress</p>
           </div>
         </section>
 

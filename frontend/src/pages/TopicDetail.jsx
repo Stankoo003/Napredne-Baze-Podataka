@@ -12,8 +12,11 @@ function TopicDetail() {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
+  const [authorAvatar, setAuthorAvatar] = useState(null);
+  const [commentAvatars, setCommentAvatars] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ content: '', category: '' });
+
 
   const categories = ['Discussion', 'News', 'Esports', 'Looking for Group', 'Questions'];
 
@@ -30,12 +33,35 @@ function TopicDetail() {
         axios.get(`http://localhost:3001/api/topics/${topicId}`),
         axios.get(`http://localhost:3001/api/topics/${topicId}/comments`)
       ]);
+      
       setTopic(topicRes.data);
       setComments(commentsRes.data);
       setEditData({
         content: topicRes.data.content,
         category: topicRes.data.category
       });
+      
+      try {
+        const avatarRes = await axios.get(`http://localhost:3001/api/players/${topicRes.data.authorUsername}/avatar`);
+        setAuthorAvatar(avatarRes.data.avatar);
+      } catch (err) {
+        console.error('Error fetching author avatar:', err);
+      }
+      
+      const uniqueAuthors = [...new Set(commentsRes.data.map(c => c.authorUsername))];
+      const avatarPromises = uniqueAuthors.map(username =>
+        axios.get(`http://localhost:3001/api/players/${username}/avatar`)
+          .then(res => ({ username, avatar: res.data.avatar }))
+          .catch(() => ({ username, avatar: null }))
+      );
+      
+      const avatars = await Promise.all(avatarPromises);
+      const avatarMap = {};
+      avatars.forEach(({ username, avatar }) => {
+        avatarMap[username] = avatar;
+      });
+      setCommentAvatars(avatarMap);
+      
     } catch (error) {
       console.error('Error fetching topic:', error);
       alert('Topic not found');
@@ -44,6 +70,7 @@ function TopicDetail() {
       setLoading(false);
     }
   };
+  
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
@@ -153,9 +180,17 @@ function TopicDetail() {
             <span className="topic-category-tag">{topic.category}</span>
             <h1 className="topic-main-title">{topic.title}</h1>
             <div className="topic-author-info">
-              <div className="author-avatar" onClick={() => handleUserClick(topic.authorUsername)}>
-                🎮
-              </div>
+            <div className="author-avatar" onClick={() => handleUserClick(topic.authorUsername)}>
+              {authorAvatar ? (
+                <img 
+                  src={`http://localhost:3001${authorAvatar}`}
+                  alt={topic.authorUsername}
+                  style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '50%' }}
+                />
+              ) : (
+                '🎮'
+              )}
+            </div>
               <div className="author-details">
                 <span className="author-name" onClick={() => handleUserClick(topic.authorUsername)}>
                   {topic.authorUsername}
@@ -237,8 +272,16 @@ function TopicDetail() {
             ) : (
               comments.map(comment => (
                 <div key={comment.id} className="comment-item">
-                  <div className="comment-avatar" onClick={() => handleUserClick(comment.authorUsername)}>
-                    🎮
+                 <div className="comment-avatar" onClick={() => handleUserClick(comment.authorUsername)}>
+                    {commentAvatars[comment.authorUsername] ? (
+                      <img 
+                        src={`http://localhost:3001${commentAvatars[comment.authorUsername]}`}
+                        alt={comment.authorUsername}
+                        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '50%' }}
+                      />
+                    ) : (
+                      '🎮'
+                    )}
                   </div>
                   <div className="comment-body">
                     <div className="comment-header">

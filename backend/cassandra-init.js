@@ -85,6 +85,18 @@ async function initCassandra() {
     `);
     console.log('✅ Tabela daily_stats kreirana');
 
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS activity_log (
+        username text,
+        activity_type text,
+        points decimal,
+        timestamp timestamp,
+        PRIMARY KEY (username, timestamp)
+      ) WITH CLUSTERING ORDER BY (timestamp DESC)
+    `);
+    console.log('✅ Tabela activity_log kreirana');
+    
+
     console.log('🎉 Cassandra inicijalizacija završena!');
     return client;
   } catch (error) {

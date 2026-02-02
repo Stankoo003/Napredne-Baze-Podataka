@@ -86,7 +86,7 @@ function Forum() {
         axios.get('http://localhost:3001/api/topics/search', { params: { q: query } }),
         axios.get('http://localhost:3001/api/users/search', { params: { q: query } })
       ]);
-
+  
       setSearchResults({
         topics: topicsRes.data.topics || [],
         users: usersRes.data.users || []
@@ -194,22 +194,28 @@ function Forum() {
                 </h2>
                 <div className="users-grid">
                   {displayUsers.map(user => (
-                    <div
-                      key={user.username}
-                      className="user-card"
-                      onClick={() => handleUserClick(user.username)}
-                    >
-                      <div className="user-card-avatar">🎮</div>
-                      <div className="user-card-info">
-                        <h3 className="user-card-name">{user.username}</h3>
-                        <p className="user-card-email">{user.email}</p>
-                        <div className="user-card-stats">
-                          <span>{user.gamesCount} games</span>
-                          <span>•</span>
-                          <span>{user.friendsCount} connections</span>
-                        </div>
+                    <div className="user-card" onClick={() => handleUserClick(user.username)}>
+                    <div className="user-card-avatar">
+                      {user.avatar ? (
+                        <img 
+                          src={`http://localhost:3001${user.avatar}`}
+                          alt={user.username}
+                          style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '50%' }}
+                        />
+                      ) : (
+                        '🎮'
+                      )}
+                    </div>
+                    <div className="user-card-info">
+                      <h3 className="user-card-name">{user.username}</h3>
+                      <p className="user-card-email">{user.email}</p>
+                      <div className="user-card-stats">
+                        <span>{user.gamesCount} games</span>
+                        <span>•</span>
+                        <span>{user.friendsCount} connections</span>
                       </div>
                     </div>
+                  </div>
                   ))}
                 </div>
               </div>
