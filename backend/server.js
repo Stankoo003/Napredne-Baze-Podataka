@@ -1361,6 +1361,117 @@ app.post('/api/stats/activity', async (req, res) => {
   }
 });
 
+app.get('/api/topics/recommended/:username', async (req, res) => {
+  const session = driver.session();
+  try {
+    const { username } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Get user's games
+    const userGamesResult = await session.run(
+      `MATCH (p:Player {username: $username})-[:RATED]->(g:Game)
+       RETURN g.title as gameTitle`,
+      { username }
+    );
+    
+    const userGames = userGamesResult.records.map(r => r.get('gameTitle'));
+    
+    // Create keyword variations
+    const gameKeywords = [];
+    userGames.forEach(game => {
+      const lowerGame = game.toLowerCase();
+      gameKeywords.push(lowerGame);
+      gameKeywords.push(lowerGame.replace(/\s+/g, '')); // Remove spaces
+      gameKeywords.push(lowerGame.replace(/\s+/g, '-')); // Replace spaces with dash
+      
+      // Special aliases
+      if (lowerGame.includes('counter strike')) {
+        gameKeywords.push('cs2', 'counter-strike', 'counterstrike');
+      }
+      if (lowerGame.includes('league of legends')) {
+        gameKeywords.push('lol', 'league');
+      }
+      if (lowerGame.includes('dota')) {
+        gameKeywords.push('dota2', 'dota 2');
+      }
+      if (lowerGame.includes('call of duty')) {
+        gameKeywords.push('cod', 'warzone');
+      }
+      if (lowerGame.includes('resident evil')) {
+        gameKeywords.push('re4', 're');
+      }
+    });
+    
+    // Get users that current user follows
+    const followingResult = await session.run(
+      `MATCH (p:Player {username: $username})-[:FOLLOWS]->(followed:Player)
+       RETURN followed.username as followedUsername`,
+      { username }
+    );
+    
+    const followedUsers = followingResult.records.map(r => r.get('followedUsername'));
+    
+    console.log('🎮 Game keywords:', gameKeywords);
+    console.log('👥 Following:', followedUsers);
+    
+    // Build recommendation query
+    const result = await session.run(
+      `MATCH (t:Topic)
+       OPTIONAL MATCH (c:Comment)-[:BELONGS_TO]->(t)
+       WITH t, COUNT(c) as commentCount,
+            toLower(t.title + ' ' + t.content) as searchText
+       RETURN t, commentCount,
+              CASE 
+                WHEN ANY(keyword IN $gameKeywords WHERE searchText CONTAINS keyword) 
+                THEN 2
+                ELSE 0 
+              END as gameMatch,
+              CASE 
+                WHEN t.authorUsername IN $followedUsers 
+                THEN 1 
+                ELSE 0 
+              END as followingMatch
+       ORDER BY (gameMatch + followingMatch) DESC, t.createdAt DESC
+       SKIP ${skip} LIMIT ${parseInt(limit)}`,
+      { 
+        gameKeywords, 
+        followedUsers
+      }
+    );
+    
+    const topics = result.records.map(record => {
+      const topic = formatNeo4jDatetime(record.get('t').properties);
+      topic.commentCount = record.get('commentCount').toNumber();
+      const totalScore = record.get('gameMatch') + record.get('followingMatch');
+      topic.isRecommended = totalScore > 0;
+      
+      console.log(`📝 Topic: "${topic.title.substring(0, 40)}..." | Score: ${totalScore}`);
+      
+      return topic;
+    });
+    
+    // Count total
+    const countResult = await session.run(`MATCH (t:Topic) RETURN count(t) as total`);
+    const total = countResult.records[0].get('total').toNumber();
+    
+    console.log(`✅ Total recommended: ${topics.filter(t => t.isRecommended).length}/${topics.length}`);
+    
+    res.json({
+      topics,
+      total,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit))
+    });
+  } catch (error) {
+    console.error('❌ Error fetching recommended topics:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Server pokrenut na http://localhost:${PORT}`);

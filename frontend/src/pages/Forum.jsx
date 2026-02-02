@@ -36,18 +36,32 @@ function Forum() {
     if (!isSearching) {
       fetchTopics();
     }
-  }, [selectedCategory, currentPage, isSearching]);
+  }, [selectedCategory, currentPage, isSearching, currentUser]);
 
   const fetchTopics = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost:3001/api/topics', {
-        params: {
-          category: selectedCategory,
-          page: currentPage,
-          limit: 10
-        }
-      });
+      let response;
+      
+      // If user is logged in, use recommendation endpoint
+      if (currentUser && selectedCategory === 'all') {
+        response = await axios.get(`http://localhost:3001/api/topics/recommended/${currentUser.username}`, {
+          params: {
+            page: currentPage,
+            limit: 10
+          }
+        });
+      } else {
+        // Regular topics endpoint with category filter
+        response = await axios.get('http://localhost:3001/api/topics', {
+          params: {
+            category: selectedCategory,
+            page: currentPage,
+            limit: 10
+          }
+        });
+      }
+      
       setTopics(response.data.topics || []);
       setTotalPages(response.data.totalPages || 1);
     } catch (error) {
@@ -86,7 +100,7 @@ function Forum() {
         axios.get('http://localhost:3001/api/topics/search', { params: { q: query } }),
         axios.get('http://localhost:3001/api/users/search', { params: { q: query } })
       ]);
-  
+
       setSearchResults({
         topics: topicsRes.data.topics || [],
         users: usersRes.data.users || []
@@ -194,28 +208,32 @@ function Forum() {
                 </h2>
                 <div className="users-grid">
                   {displayUsers.map(user => (
-                    <div className="user-card" onClick={() => handleUserClick(user.username)}>
-                    <div className="user-card-avatar">
-                      {user.avatar ? (
-                        <img 
-                          src={`http://localhost:3001${user.avatar}`}
-                          alt={user.username}
-                          style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '50%' }}
-                        />
-                      ) : (
-                        '🎮'
-                      )}
-                    </div>
-                    <div className="user-card-info">
-                      <h3 className="user-card-name">{user.username}</h3>
-                      <p className="user-card-email">{user.email}</p>
-                      <div className="user-card-stats">
-                        <span>{user.gamesCount} games</span>
-                        <span>•</span>
-                        <span>{user.friendsCount} connections</span>
+                    <div
+                      key={user.username}
+                      className="user-card"
+                      onClick={() => handleUserClick(user.username)}
+                    >
+                      <div className="user-card-avatar">
+                        {user.avatar ? (
+                          <img 
+                            src={`http://localhost:3001${user.avatar}`}
+                            alt={user.username}
+                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '50%' }}
+                          />
+                        ) : (
+                          '🎮'
+                        )}
+                      </div>
+                      <div className="user-card-info">
+                        <h3 className="user-card-name">{user.username}</h3>
+                        <p className="user-card-email">{user.email}</p>
+                        <div className="user-card-stats">
+                          <span>{user.gamesCount} games</span>
+                          <span>•</span>
+                          <span>{user.friendsCount} connections</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   ))}
                 </div>
               </div>
@@ -233,9 +251,15 @@ function Forum() {
                   {displayTopics.map(topic => (
                     <div
                       key={topic.id}
-                      className="topic-item"
+                      className={`topic-item ${topic.isRecommended ? 'recommended' : ''}`}
                       onClick={() => handleTopicClick(topic.id)}
                     >
+                      {topic.isRecommended && (
+                        <div className="recommended-badge">
+                          ⭐ Recommended for you
+                        </div>
+                      )}
+                      
                       <div className="topic-votes">
                         <button className="vote-btn">▲</button>
                         <span className="vote-count">0</span>
