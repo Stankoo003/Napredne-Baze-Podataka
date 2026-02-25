@@ -44,7 +44,7 @@ async function syncAllPlayers() {
 
       const games = gamesResult.records.map((record) => ({
         title: record.get('title'),
-        rating: record.get('rating'),
+        rating: Number(record.get('rating')),
       }));
 
       const ratedGames = games.filter(
